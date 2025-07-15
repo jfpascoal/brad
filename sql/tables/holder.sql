@@ -1,5 +1,0 @@
-CREATE TABLE IF NOT EXISTS holder (
-    id BIGINT PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    tax_bracket TEXT NULL
-);
