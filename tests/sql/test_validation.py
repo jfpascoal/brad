@@ -55,29 +55,34 @@ class TestDataValidator(unittest.TestCase):
             self.assertFalse(self.validator.validate('users', invalid_data))
             self.assertIn("Invalid column name(s) provided: {'location'}", mock_stdout.getvalue())
 
-    def test_autoincrement_column_provided(self):
+    def test_generated_identity_always_column_provided(self):
         """
-        Tests validation when the data attempts to provide a value for an autoincrement column.
+        Tests validation when the data attempts to provide a value for a column with generated identity
+        set to ALWAYS.
         """
         invalid_data = {'id': 1, 'name': 'Eve'}
         with patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             self.assertFalse(self.validator.validate('users', invalid_data))
             self.assertIn("Invalid column name(s) provided: {'id'}", mock_stdout.getvalue())
 
+    def test_generated_identity_by_default_column_provided(self):
+        """
+        Tests validation when the data attempts to provide a value for a column with generated identity
+        set top BY DEFAULT.
+        """
+        data = {'id': 1, 'type': 'Electronics'}
+        with patch('sys.stdout', new_callable=io.StringIO):
+            self.assertTrue(self.validator.validate('product_types', data))
+
     def test_missing_required_column(self):
         """
         Tests validation when a non-nullable column is missing from the data.
         """
-        invalid_data = {'price': Decimal('19.99')}  # Missing 'name' and 'sku'
+        invalid_data = {'sku': 'A1234', 'price': Decimal('19.99')}  # Missing 'name'
         with patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             self.assertFalse(self.validator.validate('products', invalid_data))
-            # The validator will stop at the first missing required column it finds.
-            # The order of columns in the loop is not guaranteed, so we check for either.
             output = mock_stdout.getvalue()
-            self.assertTrue(
-                "Required column 'sku' was not provided." in output or
-                "Required column 'name' was not provided." in output
-            )
+            self.assertIn("Required column 'name' was not provided.", output)
 
     def test_none_for_non_nullable_column(self):
         """
