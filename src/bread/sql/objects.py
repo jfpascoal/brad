@@ -63,23 +63,23 @@ class Integer(SqlType):
         Represents an INTEGER SQL type.
         """
         super().__init__("INTEGER", int)
-        
-        
+
+
 class BigInt(SqlType):
     def __init__(self):
         """
         Represents a BIGINT SQL type.
         """
         super().__init__("BIGINT", int)
-        
-        
+
+
 class Numeric(SqlType):
     def __init__(self, precision: int = 19, scale: int = 4):
         """
         Represents a NUMERIC SQL type with precision and scale.
         """
         super().__init__(f"NUMERIC({precision}, {scale})", Decimal)
-        
+
 
 class Boolean(SqlType):
     def __init__(self):
@@ -87,8 +87,8 @@ class Boolean(SqlType):
         Represents a BOOLEAN SQL type.
         """
         super().__init__("BOOLEAN", bool)
-        
-        
+
+
 class Date(SqlType):
     def __init__(self):
         """
@@ -96,7 +96,7 @@ class Date(SqlType):
         """
         super().__init__("DATE", date)
 
-        
+
 class Text(SqlType):
     def __init__(self):
         """
@@ -175,7 +175,8 @@ class Constraint:
             return f'CONSTRAINT "{self.name}" {self.sql}'
         else:
             return f'{self.sql}'
-        
+
+
 class Check(Constraint):
     def __init__(self, condition: str, name: Optional[str] = None):
         """
@@ -200,8 +201,8 @@ class FkActions:
     SET_DEFAULT = "SET DEFAULT"
     RESTRICT = "RESTRICT"
     NO_ACTION = "NO ACTION"
-    
-    
+
+
 class ForeignKey(Constraint):
     """
     Represents a FOREIGN KEY constraint.
