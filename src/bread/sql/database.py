@@ -1,96 +1,79 @@
-import os
-import sqlite3
-from datetime import date
-from decimal import Decimal
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
-from bread.sql import DB_PATH
-from bread.sql.converters import decimal_adapter, decimal_converter, date_adapter, date_converter
+import psycopg2
+
+from bread.sql.config import get_connection_string
 from bread.sql.tables import TABLES
 from bread.sql.validation import DataValidator
-
-
-def _register_custom_types():
-    """Registers custom type adapters and converters for SQLite."""
-    sqlite3.register_adapter(Decimal, decimal_adapter)
-    sqlite3.register_adapter(date, date_adapter)
-    sqlite3.register_converter('decimal', decimal_converter)
-    sqlite3.register_converter('date', date_converter)
 
 
 class DatabaseManager:
     """
     Manages all database operations including connection, schema creation,
-    and data manipulation (insert, select, etc.).
+    and data manipulation (insert, select, etc.) for PostgreSQL.
     """
 
-    def __init__(self, db_path: str = DB_PATH):
+    def __init__(self, connection_string: Optional[str] = None):
         """
         Initializes the DatabaseManager.
-        :param db_path: The path to the SQLite database file.
+        :param connection_string: PostgreSQL connection string. If None, uses default config.
         """
-        self.db_path = db_path
+        self.connection_string = connection_string or get_connection_string()
         self.validator = DataValidator(TABLES)
-        _register_custom_types()
 
-    def get_connection(self, enforce_fk: bool = True) -> sqlite3.Connection:
+    def get_connection(self) -> psycopg2.extensions.connection:
         """
-        Establishes a new database connection and optionally enables foreign keys.
-        The 'PRAGMA foreign_keys' command is connection-specific in SQLite.
+        Establishes a new PostgreSQL database connection.
 
-        :param enforce_fk: If True, enables foreign key constraint checks for this connection.
-        :return: A new sqlite3.Connection object.
+        :return: A new psycopg2 Connection object.
         """
-        conn = sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES)
-        if enforce_fk:
-            conn.execute("PRAGMA foreign_keys = ON;")
-        return conn
+        return psycopg2.connect(self.connection_string)
 
-    def initialize_schema(self, force: bool = False):
+    def initialize_schema(self, force: bool = False) -> bool:
         """
         Creates all tables and seeds them with initial data from the Python schema.
 
         This process is robust against table definition order. It first creates all
-        tables, then inserts all data. If `force` is True, it drops the
-        database file before recreating.
+        tables, then inserts all data. If `force` is True, it drops all tables
+        before recreating them.
 
-        :param force: If True, drops and recreates the DB. For development only.
+        :param force: If True, drops and recreates all tables.
+        :return: True if schema initialization was successful, False otherwise.
         """
-        if force and os.path.exists(self.db_path):
-            os.remove(self.db_path)
-        elif os.path.exists(self.db_path):
-            return
-
         try:
             with self.get_connection() as conn:
+                with conn.cursor() as cursor:
 
-                # 1. Create all tables first
-                for tbl in TABLES:
-                    conn.execute(tbl.get_create_statement())
+                    if force:
+                        # Drop all tables in reverse order to handle foreign key dependencies
+                        for tbl in reversed(TABLES):
+                            cursor.execute(f'DROP TABLE IF EXISTS "{tbl.name}" CASCADE;')
 
-                # 2. Collect all seed data
-                seed_data = [statement for tbl in TABLES
-                             if (statement := tbl.get_insert_statement()) is not None]
+                    # 1. Create all tables first
+                    for tbl in TABLES:
+                        cursor.execute(tbl.get_create_statement())
 
-                # 3. Insert all seed data in a single transaction
-                if seed_data:
-                    for sql, rows in seed_data:
-                        conn.executemany(sql, rows)
+                    # 2. Collect all seed data
+                    seed_data = [statement for tbl in TABLES
+                                 if (statement := tbl.get_insert_statement()) is not None]
+
+                    # 3. Insert all seed data in a single transaction
+                    if seed_data:
+                        for sql, rows in seed_data:
+                            cursor.executemany(sql, rows)
 
             print("Database schema and seed data initialized successfully.")
-        except (sqlite3.Error, TypeError) as e:
+        except (psycopg2.Error, TypeError) as e:
             print(f"An error occurred during schema initialization: {e}")
-            # Clean up partially created DB file on error
-            if os.path.exists(self.db_path):
-                os.remove(self.db_path)
+            return False
+        return True
 
-    def insert(self, table_name: str, data: Dict[str, Any], enforce_fk: bool = True) -> bool:
+    def insert(self, table_name: str, data: Dict[str, Any]) -> bool:
         """
         Validates and inserts a new row into the specified table.
 
         :param table_name: The name of the table to insert into.
         :param data: A dictionary of column names and values.
-        :param enforce_fk: If True, enforces foreign key constraints for this transaction.
         :return: True if insertion was successful, False otherwise.
         """
         if not self.validator.validate(table_name, data):
@@ -100,15 +83,16 @@ class DatabaseManager:
         columns = tuple(data.keys())
         values = tuple(data.values())
 
-        # Quoting column names is a safer practice
+        # Using PostgreSQL-style parameter placeholders
         column_names_str = ', '.join(f'"{col}"' for col in columns)
-        placeholders = ', '.join('?' * len(values))
+        placeholders = ', '.join(('%s',) * len(values))
         sql = f"INSERT INTO \"{table_name}\" ({column_names_str}) VALUES ({placeholders})"
 
         try:
-            with self.get_connection(enforce_fk) as conn:
-                conn.execute(sql, values)
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(sql, values)
             return True
-        except sqlite3.Error as e:
+        except psycopg2.Error as e:
             print(f"Database error on insert into '{table_name}': {e}")
             return False
