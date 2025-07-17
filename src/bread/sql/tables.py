@@ -18,55 +18,58 @@ TABLES = [
 
     Table('account_type').set_columns(
         Column('id', BIGINT, generated_identity=GeneratedIdentityOptions.BY_DEFAULT),
-        Column('name', TEXT, not_null=True)
+        Column('name', TEXT, not_null=True),
+        Column('name_pt', TEXT)
     ).set_constraint(
         PrimaryKey(['id'], "pk_account_type")
     ).set_constraint(
         Unique(['name'], "unq_account_type_name")
     ).insert_data(
-        Row(id=-1, name='Unknown'),
-        Row(id=1, name='Checking'),
-        Row(id=2, name='Savings'),
-        Row(id=3, name='Credit Card'),
-        Row(id=4, name='Investment'),
-        Row(id=5, name='Loan'),
-        Row(id=6, name='Mortgage'),
-        Row(id=7, name='Cash'),
-        Row(id=8, name='Other')
+        Row(id=-1, name='Unknown', name_pt='Desconhecido'),
+        Row(id=1, name='Checking', name_pt='Conta corrente'),
+        Row(id=2, name='Savings', name_pt='Conta poupança'),
+        Row(id=3, name='Credit Card', name_pt='Cartão de crédito'),
+        Row(id=4, name='Investment', name_pt='Investimento'),
+        Row(id=5, name='Loan', name_pt='Empréstimo'),
+        Row(id=6, name='Mortgage', name_pt='Hipoteca'),
+        Row(id=7, name='Cash', name_pt='Dinheiro'),
+        Row(id=8, name='Other', name_pt='Outros')
     ),
 
     Table('financial_product_type').set_columns(
         Column('id', BIGINT, generated_identity=GeneratedIdentityOptions.BY_DEFAULT),
-        Column('name', TEXT, not_null=True)
+        Column('name', TEXT, not_null=True),
+        Column('name_pt', TEXT)
     ).set_constraint(
         PrimaryKey(['id'], "pk_financial_product_type")
     ).set_constraint(
         Unique(['name'], "unq_financial_product_type_name")
     ).insert_data(
-        Row(id=-1, name='Unknown'),
-        Row(id=1, name='Stock'),
-        Row(id=2, name='Bond'),
-        Row(id=3, name='Investment Fund'),
-        Row(id=4, name='Exchange-Traded Fund (ETF)'),
-        Row(id=5, name='Real Estate Investment Trust (REIT)'),
-        Row(id=6, name='Cryptocurrency')
+        Row(id=-1, name='Unknown', name_pt='Desconhecido'),
+        Row(id=1, name='Stock', name_pt='Acção'),
+        Row(id=2, name='Bond', name_pt='Título'),
+        Row(id=3, name='Investment Fund', name_pt='Fundo de investimento'),
+        Row(id=4, name='Exchange-Traded Fund (ETF)', name_pt='Fundo de índice (ETF)'),
+        Row(id=5, name='Real Estate Investment Trust (REIT)', name_pt='Fundo de investimento imobiliário'),
+        Row(id=6, name='Cryptocurrency', name_pt='Criptomoeda')
     ),
 
     Table('transaction_type').set_columns(
         Column('id', BIGINT, generated_identity=GeneratedIdentityOptions.BY_DEFAULT),
-        Column('name', TEXT, not_null=True)
+        Column('name', TEXT, not_null=True),
+        Column('name_pt', TEXT)
     ).set_constraint(
         PrimaryKey(['id'], "pk_transaction_type")
     ).set_constraint(
         Unique(['name'], "unq_transaction_type_name")
     ).insert_data(
-        Row(id=-1, name='Unknown'),
-        Row(id=1, name='Purchase'),
-        Row(id=2, name='Sale'),
-        Row(id=3, name='Dividend'),
-        Row(id=4, name='Interest'),
-        Row(id=5, name='Fee'),
-        Row(id=6, name='Transfer')
+        Row(id=-1, name='Unknown', name_pt='Desconhecido'),
+        Row(id=1, name='Purchase', name_pt='Compra'),
+        Row(id=2, name='Sale', name_pt='Venda'),
+        Row(id=3, name='Dividend', name_pt='Dividendo'),
+        Row(id=4, name='Interest', name_pt='Juro'),
+        Row(id=5, name='Fee', name_pt='Taxa'),
+        Row(id=6, name='Transfer', name_pt='Transferência')
     ),
 
     Table('holder').set_columns(
