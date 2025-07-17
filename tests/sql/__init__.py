@@ -16,5 +16,9 @@ TEST_TABLES = [
         Column('price', Numeric(19, 2), not_null=True)
     ).set_constraint(
         PrimaryKey(['sku'])
+    ),
+    Table('product_types').set_columns(
+        Column('id', BigInt(), generated_identity=GeneratedIdentityOptions.BY_DEFAULT),
+        Column('type', Text(), not_null=True),
     )
 ]
