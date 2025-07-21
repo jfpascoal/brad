@@ -89,7 +89,7 @@ class DatabaseManager:
 
         # Using PostgreSQL-style parameter placeholders
         column_names_str = ', '.join(f'"{col}"' for col in columns)
-        placeholders = ', '.join(('%s',) * len(values))
+        placeholders = ', '.join(['%s'] * len(values))
         sql = f"INSERT INTO \"{table_name}\" ({column_names_str}) VALUES ({placeholders})"
 
         try:

@@ -303,6 +303,6 @@ class Table:
             rows.append(tuple(values))
 
         cols_str = ", ".join(f'"{c.name}"' for c in columns)
-        vals_str = ", ".join(('%s',) * len(columns))
+        vals_str = ", ".join(['%s'] * len(columns))
         sql = f'INSERT INTO "{self.name}" ({cols_str}) VALUES ({vals_str})'
         return sql, rows
