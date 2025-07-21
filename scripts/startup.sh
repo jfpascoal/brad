@@ -16,7 +16,7 @@ else
     docker-compose -f ./docker/docker-compose.yml up -d
     # Wait for the Postgres server to be ready
     echo "Waiting for the Postgres server to be ready..."
-    while ! docker exec ${CONTAINER_NAME} pg_isready -U ${DB_USER}; do
+    while ! docker exec "${CONTAINER_NAME}" pg_isready -U "${DB_USER}"; do
         sleep 1
     done
     echo "Postgres server is ready."
@@ -26,7 +26,7 @@ fi
 echo "Check if the database is initialized..."
 
 
-if docker exec ${CONTAINER_NAME} psql -U ${DB_USER} -d ${DB_NAME} \
+if docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -d "${DB_NAME}" \
         -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | grep -q 0; then
     echo "Initializing the database schema..."
     python ./src/bread/main.py db_init
