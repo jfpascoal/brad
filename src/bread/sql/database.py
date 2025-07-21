@@ -29,15 +29,16 @@ class DatabaseManager:
         """
         return psycopg2.connect(self.connection_string)
 
-    def initialize_schema(self, force: bool = False) -> bool:
+    def initialize_schema(self, force: bool = False, seed: bool = True) -> bool:
         """
-        Creates all tables and seeds them with initial data from the Python schema.
+        Creates all tables and optionally seeds them with initial data from the Python schema.
 
         This process is robust against table definition order. It first creates all
-        tables, then inserts all data. If `force` is True, it drops all tables
-        before recreating them.
+        tables, then inserts all data if seeding is enabled. If `force` is True, it drops 
+        all tables before recreating them.
 
         :param force: If True, drops and recreates all tables.
+        :param seed: If True, inserts seed data after creating tables. Defaults to True.
         :return: True if schema initialization was successful, False otherwise.
         """
         try:
@@ -53,16 +54,19 @@ class DatabaseManager:
                     for tbl in TABLES:
                         cursor.execute(tbl.get_create_statement())
 
-                    # 2. Collect all seed data
-                    seed_data = [statement for tbl in TABLES
-                                 if (statement := tbl.get_insert_statement()) is not None]
+                    # 2. Collect and insert seed data if seeding is enabled
+                    if seed:
+                        seed_data = [statement for tbl in TABLES
+                                     if (statement := tbl.get_insert_statement()) is not None]
 
-                    # 3. Insert all seed data in a single transaction
-                    if seed_data:
-                        for sql, rows in seed_data:
-                            cursor.executemany(sql, rows)
+                        # 3. Insert all seed data in a single transaction
+                        if seed_data:
+                            for sql, rows in seed_data:
+                                cursor.executemany(sql, rows)
 
-            print("Database schema and seed data initialized successfully.")
+            print("Database schema initialized successfully.")
+            if seed:
+                print("Seed data inserted successfully.")
         except (psycopg2.Error, TypeError) as e:
             print(f"An error occurred during schema initialization: {e}")
             return False
