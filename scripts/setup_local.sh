@@ -1,6 +1,6 @@
 #!/bin/bash
 # This script sets up the local environment to run the Bread application, including:
-# 1) create virtual enviornment
+# 1) create virtual environment
 # 2) install dependencies
 # 3) build the application
 

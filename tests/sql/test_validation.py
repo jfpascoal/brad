@@ -68,7 +68,7 @@ class TestDataValidator(unittest.TestCase):
     def test_generated_identity_by_default_column_provided(self):
         """
         Tests validation when the data attempts to provide a value for a column with generated identity
-        set top BY DEFAULT.
+        set to BY DEFAULT.
         """
         data = {'id': 1, 'type': 'Electronics'}
         with patch('sys.stdout', new_callable=io.StringIO):

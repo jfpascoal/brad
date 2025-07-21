@@ -29,7 +29,7 @@ echo "Check if the database is initialized..."
 if docker exec ${CONTAINER_NAME} psql -U ${DB_USER} -d ${DB_NAME} \
         -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | grep -q 0; then
     echo "Initializing the database schema..."
-    python ./src/bread/main.py initialize_db
+    python ./src/bread/main.py db_init
     if [ $? -ne 0 ]; then
         echo "Failed to initialize the database schema."
         exit 1
