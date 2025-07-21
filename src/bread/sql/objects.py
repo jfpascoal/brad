@@ -120,7 +120,8 @@ class Column:
         Initializes a Column object for a table schema.
         :param name: Column name.
         :param sql_type: SqlType instance for the column.
-        :param generated_identity: If True, column is auto-generated (Postgres IDENTITY).
+        :param generated_identity: Specifies if the column is generated with identity and whether it's
+            always or by default.
         :param not_null: If True, column is NOT NULL.
         :param default: Default value for the column.
         """

@@ -29,7 +29,7 @@ class MethodOptions:
 
     def set(self, input_opts: List[str]):
         """Set options as attributes based on command line input."""
-        active_opt = None  # Initialize active_opt at method level
+        active_opt = None
         for opt in input_opts:
             # Check if the option is a valid flag or value
             if opt.startswith('-') and opt not in self.flag_list():
@@ -38,7 +38,6 @@ class MethodOptions:
                 # If it's a flag, set the corresponding attribute to True
                 if isinstance(getattr(self, self.flag_map[opt]), bool):
                     setattr(self, self.flag_map[opt], True)
-                    active_opt = None
                 # If it's a value, set the last active option
                 else:
                     active_opt = self.flag_map[opt]
@@ -47,7 +46,7 @@ class MethodOptions:
                 if active_opt is not None:
                     typ = self.opts[active_opt][1]
                     setattr(self, active_opt, typ(opt))
-                    active_opt = None  # Reset after setting value
+                    active_opt = None
                 else:
                     print(f"Warning: Value '{opt}' without a preceding option.")
                 

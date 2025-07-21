@@ -165,7 +165,7 @@ class TestTableObject(unittest.TestCase):
         self.assertEqual('INSERT INTO "test_table" ("id", "name", "is_active") VALUES (%s, %s, %s)', sql)
         self.assertEqual(2, len(data))
         self.assertEqual((1, "First", None), data[0])
-        self.assertTrue(data[1])
+        self.assertEqual((2, "Second", True), data[1])
 
     def test_get_insert_statement_no_data(self):
         """
