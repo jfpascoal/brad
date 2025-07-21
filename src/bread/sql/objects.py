@@ -135,6 +135,8 @@ class Column:
         self.not_null = not_null if not generated_identity else True
         if default is None:
             self.default = None
+        elif not isinstance(default, sql_type.py()):
+            raise TypeError(f"Default value {default} is not of type {sql_type.py().__name__}.")
         elif isinstance(sql_type, Text):
             self.default = f"'{default}'"
         elif isinstance(sql_type, Boolean):

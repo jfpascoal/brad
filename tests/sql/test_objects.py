@@ -58,6 +58,13 @@ class TestColumnObject(unittest.TestCase):
         """
         col = Column('name', Text(), not_null=True, default='N/A')
         self.assertEqual('"name" TEXT NOT NULL DEFAULT \'N/A\'', col.to_sql())
+        
+    def test_column_with_invalid_default(self):
+        """
+        Column with invalid default value raises TypeError.
+        """
+        with self.assertRaises(TypeError):
+            Column('is_active', Boolean(), default=123)
 
     def test_generated_identity_column(self):
         """
