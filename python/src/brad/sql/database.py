@@ -34,8 +34,8 @@ class DatabaseManager:
         Creates all tables and optionally seeds them with initial data from the Python schema.
 
         This process is robust against table definition order. It first creates all
-        tables, then inserts all data if seeding is enabled. If `force` is True, it drops 
-        all tables before recreating them.
+        tables, then inserts all data if seeding is enabled. If `force` is True,
+        it drops all tables before recreating them.
 
         :param force: If True, drops and recreates all tables.
         :param seed: If True, inserts seed data after creating tables. Defaults to True.

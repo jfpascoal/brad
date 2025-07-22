@@ -49,8 +49,8 @@ class MethodOptions:
                     active_opt = None
                 else:
                     print(f"Warning: Value '{opt}' without a preceding option.")
-                
-        
+
+
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser()
