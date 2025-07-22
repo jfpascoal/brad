@@ -2,7 +2,7 @@ import argparse
 import sys
 from typing import List, Dict, Tuple, Any
 
-from bread.sql.database import DatabaseManager
+from brad.sql.database import DatabaseManager
 
 
 class MethodOptions:

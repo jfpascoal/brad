@@ -2,9 +2,9 @@ from typing import Dict, Any, Optional
 
 import psycopg2
 
-from bread.sql.config import get_connection_string
-from bread.sql.tables import TABLES
-from bread.sql.validation import DataValidator
+from brad.sql.config import get_connection_string
+from brad.sql.tables import TABLES
+from brad.sql.validation import DataValidator
 
 
 class DatabaseManager:

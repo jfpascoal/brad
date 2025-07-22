@@ -2,7 +2,7 @@ import re
 import unittest
 from decimal import Decimal
 
-from bread.sql.objects import Row, SqlType, Integer, BigInt, Numeric, Boolean, Date, Text, Column, PrimaryKey, \
+from brad.sql.objects import Row, SqlType, Integer, BigInt, Numeric, Boolean, Date, Text, Column, PrimaryKey, \
     ForeignKey, Unique, Check, Table, FkActions, GeneratedIdentityOptions
 
 

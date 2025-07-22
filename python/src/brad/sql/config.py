@@ -1,7 +1,7 @@
 import os
 from typing import Dict, Any
 
-from bread.sql import SECRETS_DIR
+from brad.sql import SECRETS_DIR
 
 class Config:
     """

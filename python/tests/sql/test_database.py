@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock, call
-from bread.sql.database import DatabaseManager
+from brad.sql.database import DatabaseManager
 import psycopg2
 
 
@@ -9,7 +9,7 @@ class TestDatabaseManager(unittest.TestCase):
     Unit tests for the DatabaseManager class.
     """
 
-    @patch('bread.sql.database.get_connection_string')
+    @patch('brad.sql.database.get_connection_string')
     def test_init_with_default_connection_string(self, mock_get_connection_string):
         """
         Test that DatabaseManager initializes with default connection string when none is provided.
@@ -29,7 +29,7 @@ class TestDatabaseManager(unittest.TestCase):
         
         self.assertEqual(custom_connection, db.connection_string)
 
-    @patch('bread.sql.database.psycopg2.connect')
+    @patch('brad.sql.database.psycopg2.connect')
     def test_get_connection(self, mock_connect):
         """
         Test that get_connection establishes a database connection using the connection string.
@@ -43,8 +43,8 @@ class TestDatabaseManager(unittest.TestCase):
         mock_connect.assert_called_once_with("test_connection")
         self.assertEqual(mock_connection, result)
 
-    @patch('bread.sql.database.TABLES')
-    @patch('bread.sql.database.psycopg2.connect')
+    @patch('brad.sql.database.TABLES')
+    @patch('brad.sql.database.psycopg2.connect')
     @patch('builtins.print')
     def test_initialize_schema_with_seeding(self, mock_print, mock_connect, mock_tables):
         """
@@ -71,8 +71,8 @@ class TestDatabaseManager(unittest.TestCase):
         mock_cursor.executemany.assert_called_once_with("INSERT INTO test_table VALUES (%s);", [('1',)])
         mock_print.assert_called_with("Seed data inserted successfully.")
 
-    @patch('bread.sql.database.TABLES')
-    @patch('bread.sql.database.psycopg2.connect')
+    @patch('brad.sql.database.TABLES')
+    @patch('brad.sql.database.psycopg2.connect')
     @patch('builtins.print')
     def test_initialize_schema_without_seeding(self, mock_print, mock_connect, mock_tables):
         """
@@ -99,8 +99,8 @@ class TestDatabaseManager(unittest.TestCase):
         mock_cursor.executemany.assert_not_called()
         mock_print.assert_called_with("Database schema initialized successfully.")
 
-    @patch('bread.sql.database.TABLES')
-    @patch('bread.sql.database.psycopg2.connect')
+    @patch('brad.sql.database.TABLES')
+    @patch('brad.sql.database.psycopg2.connect')
     def test_initialize_schema_with_force(self, mock_connect, mock_tables):
         """
         Test that initialize_schema drops tables first when force=True.
@@ -125,7 +125,7 @@ class TestDatabaseManager(unittest.TestCase):
         mock_cursor.execute.assert_any_call('DROP TABLE IF EXISTS "test_table" CASCADE;')
         mock_cursor.execute.assert_any_call("CREATE TABLE test_table (id INT);")
 
-    @patch('bread.sql.database.DatabaseManager.get_connection')
+    @patch('brad.sql.database.DatabaseManager.get_connection')
     @patch('builtins.print')
     def test_initialize_schema_handles_database_error(self, mock_print, mock_get_connection):
         """
@@ -139,7 +139,7 @@ class TestDatabaseManager(unittest.TestCase):
         self.assertFalse(result)
         mock_print.assert_called_with("An error occurred during schema initialization: Database connection failed")
 
-    @patch('bread.sql.database.psycopg2.connect')
+    @patch('brad.sql.database.psycopg2.connect')
     def test_insert_success(self, mock_connect):
         """
         Test successful insertion of data into a table.
@@ -163,7 +163,7 @@ class TestDatabaseManager(unittest.TestCase):
         expected_sql = 'INSERT INTO "test_table" ("name", "value") VALUES (%s, %s)'
         mock_cursor.execute.assert_called_once_with(expected_sql, ('test', 123))
 
-    @patch('bread.sql.database.psycopg2.connect')
+    @patch('brad.sql.database.psycopg2.connect')
     def test_insert_validation_failure(self, mock_connect):
         """
         Test that insert returns False when validation fails.
@@ -180,7 +180,7 @@ class TestDatabaseManager(unittest.TestCase):
         db.validator.validate.assert_called_once_with('test_table', test_data)
         mock_connect.assert_not_called()
 
-    @patch('bread.sql.database.DatabaseManager.get_connection')
+    @patch('brad.sql.database.DatabaseManager.get_connection')
     @patch('builtins.print')
     def test_insert_database_error(self, mock_print, mock_get_connection):
         """
