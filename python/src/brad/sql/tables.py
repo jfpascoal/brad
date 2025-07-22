@@ -1,5 +1,7 @@
-from brad.sql.objects import Row, BigInt, Numeric, Date, Boolean, Text, GeneratedIdentityOptions, \
+from brad.sql.objects import (
+    Row, BigInt, Numeric, Date, Boolean, Text, GeneratedIdentityOptions,
     Column, PrimaryKey, FkActions, ForeignKey, Unique, Table
+)
 
 BIGINT = BigInt()
 DATE = Date()

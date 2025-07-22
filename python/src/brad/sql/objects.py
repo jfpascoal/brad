@@ -34,8 +34,8 @@ class Row:
         Returns the row data as a dictionary.
         """
         return {c: self[c] for c in self.columns()}
-    
-    
+
+
 class SqlType:
     def __init__(self, name: str, python_type: Type):
         """

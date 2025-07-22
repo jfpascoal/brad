@@ -3,6 +3,7 @@ from typing import Dict, Any
 
 from brad.sql import SECRETS_DIR
 
+
 class Config:
     """
     PostgreSQL database connection configuration.
@@ -46,10 +47,9 @@ def get_connection_string() -> str:
     """
     Returns a PostgreSQL connection string.
     """
-    config = Config().get() 
+    config = Config().get()
     return (f"host={config['host']} "
             f"port={config['port']} "
             f"dbname={config['database']} "
             f"user={config['user']} "
             f"password={config['password']}")
-    

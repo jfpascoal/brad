@@ -30,9 +30,9 @@ class DataValidator:
             print(f"Invalid table name: '{table_name}'")
             return False
 
-        allowed_cols = {col.name for col in tbl.columns if
-            not col.generated_identity or col.generated_identity == Opts.BY_DEFAULT
-        }
+        allowed_cols = {col.name for col in tbl.columns
+                        if (not col.generated_identity
+                            or col.generated_identity == Opts.BY_DEFAULT)}
         provided_cols = set(data.keys())
 
         # Check for any provided columns that are not allowed (i.e., undefined columns or
