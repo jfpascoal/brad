@@ -19,7 +19,7 @@ fi
 
 # Install dependencies
 echo "Installing dependencies..."
-pip install -r .python/requirements.txt
+pip install -r ./python/requirements.txt
 
 # Build the application
 echo "Building the application..."
