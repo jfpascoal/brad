@@ -1,6 +1,5 @@
 # Project folders
 data/
-dbt/profiles.yml
 dbt/logs
 docker/secrets/
 
