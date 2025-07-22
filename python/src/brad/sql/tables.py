@@ -1,10 +1,11 @@
-from bread.sql.objects import Row, BigInt, Numeric, Date, Text, GeneratedIdentityOptions, \
+from brad.sql.objects import Row, BigInt, Numeric, Date, Boolean, Text, GeneratedIdentityOptions, \
     Column, PrimaryKey, FkActions, ForeignKey, Unique, Table
 
 BIGINT = BigInt()
 DATE = Date()
 TEXT = Text()
 NUMERIC_19_5 = Numeric(19, 5)
+BOOLEAN = Boolean()
 
 TABLES = [
     Table('exchange_rate').set_columns(
@@ -86,7 +87,8 @@ TABLES = [
 
     Table('provider').set_columns(
         Column('id', BIGINT, generated_identity=GeneratedIdentityOptions.BY_DEFAULT),
-        Column('name', TEXT, not_null=True)
+        Column('name', TEXT, not_null=True),
+        Column('country_iso_alpha2', TEXT, not_null=True)
     ).set_constraint(
         PrimaryKey(['id'], "pk_provider")
     ).set_constraint(
@@ -102,7 +104,10 @@ TABLES = [
         Column('provider_id', BIGINT, not_null=True, default=-1),
         Column('holder_1_id', BIGINT, not_null=True, default=-1),
         Column('holder_2_id', BIGINT),
-        Column('holder_3_id', BIGINT)
+        Column('holder_3_id', BIGINT),
+        Column('opening_date', DATE),
+        Column('closing_date', DATE),
+        Column('is_active', BOOLEAN, not_null=True, default=True)
     ).set_constraint(
         PrimaryKey(['id'], "pk_account")
     ).set_constraint(
@@ -123,7 +128,7 @@ TABLES = [
         ForeignKey(['holder_3_id'], 'holder', ['id'],
                    name="fk_account_holder_3")
     ).insert_data(
-        Row(id=-1, name='Unknown')
+        Row(id=-1, name='Unknown', is_active=False)
     ),
 
     Table('financial_product').set_columns(
@@ -134,7 +139,8 @@ TABLES = [
         Column('provider_id', BIGINT, not_null=True, default=-1),
         Column('holder_id', BIGINT, not_null=True, default=-1),
         Column('ticker', TEXT),
-        Column('isin', TEXT)
+        Column('isin', TEXT),
+        Column('is_active', BOOLEAN, not_null=True, default=True)
     ).set_constraint(
         PrimaryKey(['id'], "pk_financial_product")
     ).set_constraint(
@@ -150,7 +156,7 @@ TABLES = [
         ForeignKey(['holder_id'], 'holder', ['id'],
                    name="fk_financial_product_holder")
     ).insert_data(
-        Row(id=-1, name='Unknown', currency='')
+        Row(id=-1, name='Unknown', currency='', is_active=False)
     ),
 
     Table('account_balance').set_columns(

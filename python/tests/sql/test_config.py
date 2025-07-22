@@ -1,7 +1,7 @@
 import os
 import unittest
 from unittest.mock import patch, mock_open
-from bread.sql.config import Config, get_connection_string
+from brad.sql.config import Config, get_connection_string
 
 class TestConfig(unittest.TestCase):
     """
@@ -40,7 +40,7 @@ class TestConfig(unittest.TestCase):
         Test that Config.get() retrieves connection parameters from the secrets directory
         when environment variables are not fully set.
         """
-        with patch("bread.sql.config.SECRETS_DIR", "test_secrets"):
+        with patch("brad.sql.config.SECRETS_DIR", "test_secrets"):
             config = Config()
             expected = {
                 'host': 'test_host',
@@ -51,7 +51,7 @@ class TestConfig(unittest.TestCase):
             }
             self.assertEqual(expected, config.get())
 
-    @patch("bread.sql.config.Config.get", return_value={
+    @patch("brad.sql.config.Config.get", return_value={
         'host': 'test_host',
         'port': 5432,
         'database': 'db',

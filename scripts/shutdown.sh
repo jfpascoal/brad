@@ -1,7 +1,7 @@
 #!/bin/bash
 # This script gracefully stops the PostgreSQL container.
 
-CONTAINER_NAME="bread-db-1"
+CONTAINER_NAME="brad-db-1"
 
 # Stop the PostgreSQL container
 if docker exec ${CONTAINER_NAME} pg_isready -U postgres; then

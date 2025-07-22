@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 
-from bread.sql.objects import Table, GeneratedIdentityOptions as Opts
-from bread.sql.tables import TABLES
+from brad.sql.objects import Table, GeneratedIdentityOptions as Opts
+from brad.sql.tables import TABLES
 
 
 class DataValidator:

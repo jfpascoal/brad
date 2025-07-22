@@ -5,7 +5,7 @@ from decimal import Decimal
 
 # Import the shared test data from the package's __init__.py
 from . import TEST_TABLES
-from bread.sql.validation import DataValidator
+from brad.sql.validation import DataValidator
 
 
 class TestDataValidator(unittest.TestCase):

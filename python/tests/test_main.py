@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from bread.main import parse_args, initialize_db, MethodOptions
+from brad.main import parse_args, initialize_db, MethodOptions
 
 
 class TestParseArgs(unittest.TestCase):
@@ -8,7 +8,7 @@ class TestParseArgs(unittest.TestCase):
     Tests for the parse_args function.
     """
 
-    @patch('sys.argv', ['bread', 'db_init'])
+    @patch('sys.argv', ['brad', 'db_init'])
     def test_parse_args_basic(self):
         """Test parsing basic command line arguments."""
         args = parse_args()
@@ -16,7 +16,7 @@ class TestParseArgs(unittest.TestCase):
         self.assertEqual('db_init', args.method)
         self.assertEqual([], args.options)
 
-    @patch('sys.argv', ['bread', 'db_init', '-f', '--no-seed'])
+    @patch('sys.argv', ['brad', 'db_init', '-f', '--no-seed'])
     def test_parse_args_with_options(self):
         """Test parsing command line arguments with options."""
         args = parse_args()
@@ -101,7 +101,7 @@ class TestInitializeDb(unittest.TestCase):
     Tests for the initialize_db function.
     """
 
-    @patch('bread.main.DatabaseManager')
+    @patch('brad.main.DatabaseManager')
     def test_initialize_db_default_behavior(self, mock_db_manager):
         """Test default behavior seeds data without flags."""
         mock_db_instance = MagicMock()
@@ -113,7 +113,7 @@ class TestInitializeDb(unittest.TestCase):
         mock_db_instance.initialize_schema.assert_called_once_with(force=False, seed=True)
         self.assertEqual(mock_db_instance, result)
 
-    @patch('bread.main.DatabaseManager')
+    @patch('brad.main.DatabaseManager')
     def test_initialize_db_with_force_flag(self, mock_db_manager):
         """Test force flag handling."""
         mock_db_instance = MagicMock()
@@ -125,7 +125,7 @@ class TestInitializeDb(unittest.TestCase):
         mock_db_instance.initialize_schema.assert_called_once_with(force=True, seed=True)
         self.assertEqual(mock_db_instance, result)
 
-    @patch('bread.main.DatabaseManager')
+    @patch('brad.main.DatabaseManager')
     def test_initialize_db_with_force_long_flag(self, mock_db_manager):
         """Test --force flag handling."""
         mock_db_instance = MagicMock()
@@ -137,7 +137,7 @@ class TestInitializeDb(unittest.TestCase):
         mock_db_instance.initialize_schema.assert_called_once_with(force=True, seed=True)
         self.assertEqual(mock_db_instance, result)
 
-    @patch('bread.main.DatabaseManager')
+    @patch('brad.main.DatabaseManager')
     def test_initialize_db_with_no_seed_flag(self, mock_db_manager):
         """Test --no-seed flag disables seeding."""
         mock_db_instance = MagicMock()
@@ -149,7 +149,7 @@ class TestInitializeDb(unittest.TestCase):
         mock_db_instance.initialize_schema.assert_called_once_with(force=False, seed=False)
         self.assertEqual(mock_db_instance, result)
 
-    @patch('bread.main.DatabaseManager')
+    @patch('brad.main.DatabaseManager')
     def test_initialize_db_with_both_flags(self, mock_db_manager):
         """Test both force and no-seed flags together."""
         mock_db_instance = MagicMock()
@@ -161,7 +161,7 @@ class TestInitializeDb(unittest.TestCase):
         mock_db_instance.initialize_schema.assert_called_once_with(force=True, seed=False)
         self.assertEqual(mock_db_instance, result)
 
-    @patch('bread.main.DatabaseManager')
+    @patch('brad.main.DatabaseManager')
     @patch('builtins.print')
     def test_initialize_db_with_unknown_option(self, mock_print, mock_db_manager):
         """Test warning is printed for unknown options."""
