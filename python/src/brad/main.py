@@ -1,13 +1,17 @@
 import argparse
+import logging
 import sys
 from typing import List, Dict, Tuple, Any
 
 from brad.sql.database import DatabaseManager
+from brad.sql.schema import create_schema
+
+logger = logging.getLogger(__name__)
 
 
 class MethodOptions:
     """Represents command line options for a method."""
-    
+
     def __init__(self, opts: Dict[str, Tuple[List[str], Any, str]]):
         """Initialize with option specifications: {attr: ([flags], type, desc)}."""
         self.opts = opts
@@ -18,7 +22,7 @@ class MethodOptions:
     def flag_list(self) -> List[str]:
         """Return list of valid flags."""
         return list(self.flag_map.keys())
-    
+
     def valid_opts(self) -> str:
         """Return string representation of valid options."""
         options = []
@@ -28,12 +32,16 @@ class MethodOptions:
         return '\n'.join(options)
 
     def set(self, input_opts: List[str]):
-        """Set options as attributes based on command line input."""
+        """
+        Set options as attributes based on command line input.
+        
+        :param input_opts: List of command line option strings to process.
+        """
         active_opt = None
         for opt in input_opts:
             # Check if the option is a valid flag or value
             if opt.startswith('-') and opt not in self.flag_list():
-                print(f"Warning: Unknown option '{opt}'.")
+                logger.warning(f"Unknown option '{opt}'.")
             elif opt.startswith('-'):
                 # If it's a flag, set the corresponding attribute to True
                 if isinstance(getattr(self, self.flag_map[opt]), bool):
@@ -48,11 +56,15 @@ class MethodOptions:
                     setattr(self, active_opt, typ(opt))
                     active_opt = None
                 else:
-                    print(f"Warning: Value '{opt}' without a preceding option.")
+                    logger.warning(f"Value '{opt}' without a preceding option.")
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command line arguments."""
+    """
+    Parse command line arguments for the Brad application.
+    
+    :return: Parsed command line arguments as an argparse.Namespace object.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('method', choices=['db_init'], help="Method to run")
     parser.add_argument('options', nargs=argparse.REMAINDER, help="Additional options for the method")
@@ -72,18 +84,30 @@ def initialize_db(options: List[str]) -> DatabaseManager:
         'force': (['-f', '--force'], bool, "Drop and recreate all tables"),
         'no_seed': (['--no-seed'], bool, "Skip seeding data")
     })
-    
+
     valid_options.set(options)
     db = DatabaseManager()
-    seed = not valid_options.no_seed
-    db.initialize_schema(force=valid_options.force, seed=seed)
+    create_schema(db, force=valid_options.force, seed=(not valid_options.no_seed))
     return db
 
 
 if __name__ == "__main__":
+
+    logging.basicConfig(filename="python/logs/brad.log", level=logging.INFO)
+    logger.info("\n _                _ "
+                "\n| |__ _ _ __ _ __| |"
+                "\n| '_ \\ '_/ _` / _` |"
+                "\n|_.__/_| \\__,_\\__,_|")
+
     args = parse_args()
     if args.method == 'db_init':
+        logger.info("Initializing database...")
         initialize_db(args.options)
     else:
-        print(f"Unknown method: {args.method}")
+        logger.error(f"Unknown method: {args.method}")
+        logging.shutdown()
+        sys.exit(1)
+
+    logger.info("All done.")
+    logging.shutdown()
     sys.exit(0)
