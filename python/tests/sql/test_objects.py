@@ -18,7 +18,8 @@ class TestRowObject(unittest.TestCase):
         row = Row(id=1, name="Test")
         self.assertEqual(1, row.id)
         self.assertEqual("Test", row['name'])
-        self.assertRaises(AttributeError, lambda: row['non_existent'])
+        with self.assertRaises(AttributeError):
+            row['non_existent']
         self.assertEqual({'id', 'name'}, set(row.columns()))
         self.assertEqual({'id': 1, 'name': 'Test'}, row.get_dict())
 
