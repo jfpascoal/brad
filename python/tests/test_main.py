@@ -1,3 +1,4 @@
+import re
 import unittest
 from unittest.mock import patch, MagicMock
 from brad.main import parse_args, initialize_db, MethodOptions
@@ -66,12 +67,12 @@ class TestMethodOptions(unittest.TestCase):
         self.assertTrue(self.options.no_seed)
         self.assertEqual(0, self.options.count)  # Should remain default
 
-    @patch('builtins.print')
-    def test_set_unknown_flag_warning(self, mock_print):
+    @patch('brad.main.logger')
+    def test_set_unknown_flag_warning(self, mock_logger):
         """Test warning is printed for unknown flags."""
         self.options.set(['--unknown-flag'])
-        
-        mock_print.assert_called_with("Warning: Unknown option '--unknown-flag'.")
+
+        mock_logger.warning.assert_called_with("Unknown option '--unknown-flag'.")
 
     def test_set_value_option(self):
         """Test setting value-based options."""
@@ -80,12 +81,12 @@ class TestMethodOptions(unittest.TestCase):
         self.assertEqual(42, self.options.count)
         self.assertFalse(self.options.force)  # Should remain default
 
-    @patch('builtins.print')
-    def test_set_value_without_flag_warning(self, mock_print):
+    @patch('brad.main.logger')
+    def test_set_value_without_flag_warning(self, mock_logger):
         """Test warning for value without preceding option."""
         self.options.set(['42'])
-        
-        mock_print.assert_called_with("Warning: Value '42' without a preceding option.")
+
+        mock_logger.warning.assert_called_with("Value '42' without a preceding option.")
 
     def test_set_mixed_options(self):
         """Test setting mixed boolean and value options."""
@@ -101,20 +102,22 @@ class TestInitializeDb(unittest.TestCase):
     Tests for the initialize_db function.
     """
 
+    @patch('brad.main.create_schema')
     @patch('brad.main.DatabaseManager')
-    def test_initialize_db_default_behavior(self, mock_db_manager):
+    def test_initialize_db_default_behavior(self, mock_db_manager, mock_create_schema):
         """Test default behavior seeds data without flags."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
-        
+
         result = initialize_db([])
         
         mock_db_manager.assert_called_once()
-        mock_db_instance.initialize_schema.assert_called_once_with(force=False, seed=True)
+        mock_create_schema.assert_called_once_with(mock_db_instance, force=False, seed=True)
         self.assertEqual(mock_db_instance, result)
 
+    @patch('brad.main.create_schema')
     @patch('brad.main.DatabaseManager')
-    def test_initialize_db_with_force_flag(self, mock_db_manager):
+    def test_initialize_db_with_force_flag(self, mock_db_manager, mock_create_schema):
         """Test force flag handling."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
@@ -122,11 +125,12 @@ class TestInitializeDb(unittest.TestCase):
         result = initialize_db(['-f'])
         
         mock_db_manager.assert_called_once()
-        mock_db_instance.initialize_schema.assert_called_once_with(force=True, seed=True)
+        mock_create_schema.assert_called_once_with(mock_db_instance, force=True, seed=True)
         self.assertEqual(mock_db_instance, result)
 
+    @patch('brad.main.create_schema')
     @patch('brad.main.DatabaseManager')
-    def test_initialize_db_with_force_long_flag(self, mock_db_manager):
+    def test_initialize_db_with_force_long_flag(self, mock_db_manager, mock_create_schema):
         """Test --force flag handling."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
@@ -134,11 +138,12 @@ class TestInitializeDb(unittest.TestCase):
         result = initialize_db(['--force'])
         
         mock_db_manager.assert_called_once()
-        mock_db_instance.initialize_schema.assert_called_once_with(force=True, seed=True)
+        mock_create_schema.assert_called_once_with(mock_db_instance, force=True, seed=True)
         self.assertEqual(mock_db_instance, result)
 
+    @patch('brad.main.create_schema')
     @patch('brad.main.DatabaseManager')
-    def test_initialize_db_with_no_seed_flag(self, mock_db_manager):
+    def test_initialize_db_with_no_seed_flag(self, mock_db_manager, mock_create_schema):
         """Test --no-seed flag disables seeding."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
@@ -146,11 +151,12 @@ class TestInitializeDb(unittest.TestCase):
         result = initialize_db(['--no-seed'])
         
         mock_db_manager.assert_called_once()
-        mock_db_instance.initialize_schema.assert_called_once_with(force=False, seed=False)
+        mock_create_schema.assert_called_once_with(mock_db_instance, force=False, seed=False)
         self.assertEqual(mock_db_instance, result)
 
+    @patch('brad.main.create_schema')
     @patch('brad.main.DatabaseManager')
-    def test_initialize_db_with_both_flags(self, mock_db_manager):
+    def test_initialize_db_with_both_flags(self, mock_db_manager, mock_create_schema):
         """Test both force and no-seed flags together."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
@@ -158,21 +164,20 @@ class TestInitializeDb(unittest.TestCase):
         result = initialize_db(['-f', '--no-seed'])
         
         mock_db_manager.assert_called_once()
-        mock_db_instance.initialize_schema.assert_called_once_with(force=True, seed=False)
+        mock_create_schema.assert_called_once_with(mock_db_instance, force=True, seed=False)
         self.assertEqual(mock_db_instance, result)
 
+    @patch('brad.main.create_schema')
     @patch('brad.main.DatabaseManager')
-    @patch('builtins.print')
-    def test_initialize_db_with_unknown_option(self, mock_print, mock_db_manager):
+    def test_initialize_db_with_unknown_option(self, mock_db_manager, mock_create_schema):
         """Test warning is printed for unknown options."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
         
         result = initialize_db(['--unknown-option'])
         
-        mock_print.assert_called_with("Warning: Unknown option '--unknown-option'.")
         mock_db_manager.assert_called_once()
-        mock_db_instance.initialize_schema.assert_called_once_with(force=False, seed=True)
+        mock_create_schema.assert_called_once_with(mock_db_instance, force=False, seed=True)
         self.assertEqual(mock_db_instance, result)
 
 
