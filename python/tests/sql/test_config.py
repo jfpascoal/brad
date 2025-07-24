@@ -1,7 +1,9 @@
 import os
 import unittest
 from unittest.mock import patch, mock_open
+
 from brad.sql.config import Config, get_connection_string
+
 
 class TestConfig(unittest.TestCase):
     """
@@ -66,6 +68,7 @@ class TestConfig(unittest.TestCase):
             "host=test_host port=5432 dbname=db user=usr password=pw"
         )
         self.assertEqual(expected, get_connection_string())
+
 
 if __name__ == "__main__":
     unittest.main()
