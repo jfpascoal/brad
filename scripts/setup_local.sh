@@ -5,6 +5,7 @@
 # 3) build the application
 
 echo "Setting up the local environment..."
+python -m pip install --upgrade pip setuptools
 
 # Create virtual environment
 echo "Creating virtual environment..."
