@@ -12,7 +12,7 @@ description = ""
 requires-python = ">=3.9"
 license = "MIT"
 dependencies = [
-    "psycopg2-binary>=2.9.0"
+    "psycopg[binary]"
 ]
 
 [project.optional-dependencies]
