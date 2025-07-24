@@ -1,102 +1,64 @@
-from typing import Dict, Any, Optional
+from typing import Any, Optional, List, Tuple
 
-import psycopg2
+import psycopg
 
 from brad.sql.config import get_connection_string
-from brad.sql.tables import TABLES
-from brad.sql.validation import DataValidator
 
 
 class DatabaseManager:
     """
     Manages all database operations including connection, schema creation,
     and data manipulation (insert, select, etc.) for PostgreSQL.
+    
+    This class provides a simple interface for executing SQL queries and managing
+    database connections using psycopg for PostgreSQL databases.
     """
 
     def __init__(self, connection_string: Optional[str] = None):
         """
         Initializes the DatabaseManager.
+        
         :param connection_string: PostgreSQL connection string. If None, uses default config.
         """
         self.connection_string = connection_string or get_connection_string()
-        self.validator = DataValidator(TABLES)
 
-    def get_connection(self) -> psycopg2.extensions.connection:
+    def get_connection(self) -> psycopg.Connection:
         """
         Establishes a new PostgreSQL database connection.
-
-        :return: A new psycopg2 Connection object.
+        
+        :return: A new psycopg Connection object.
         """
-        return psycopg2.connect(self.connection_string)
+        return psycopg.connect(self.connection_string)
 
-    def initialize_schema(self, force: bool = False, seed: bool = True) -> bool:
+    def execute_query(self, query: str, params: Optional[Tuple] = None) -> None:
         """
-        Creates all tables and optionally seeds them with initial data from the Python schema.
-
-        This process is robust against table definition order. It first creates all
-        tables, then inserts all data if seeding is enabled. If `force` is True,
-        it drops all tables before recreating them.
-
-        :param force: If True, drops and recreates all tables.
-        :param seed: If True, inserts seed data after creating tables. Defaults to True.
-        :return: True if schema initialization was successful, False otherwise.
+        Executes a SQL query against the database.
+        
+        :param query: The SQL query to execute.
+        :param params: Optional parameters for the query.
         """
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cursor:
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(query, params)
 
-                    if force:
-                        # Drop all tables in reverse order to handle foreign key dependencies
-                        for tbl in reversed(TABLES):
-                            cursor.execute(f'DROP TABLE IF EXISTS "{tbl.name}" CASCADE;')
-
-                    # 1. Create all tables first
-                    for tbl in TABLES:
-                        cursor.execute(tbl.get_create_statement())
-
-                    # 2. Collect and insert seed data if seeding is enabled
-                    if seed:
-                        seed_data = [statement for tbl in TABLES
-                                     if (statement := tbl.get_insert_statement()) is not None]
-
-                        # 3. Insert all seed data in a single transaction
-                        if seed_data:
-                            for sql, rows in seed_data:
-                                cursor.executemany(sql, rows)
-
-            print("Database schema initialized successfully.")
-            if seed:
-                print("Seed data inserted successfully.")
-        except (psycopg2.Error, TypeError) as e:
-            print(f"An error occurred during schema initialization: {e}")
-            return False
-        return True
-
-    def insert(self, table_name: str, data: Dict[str, Any]) -> bool:
+    def execute_many(self, query: str, data: List[Tuple[Any, ...]]) -> None:
         """
-        Validates and inserts a new row into the specified table.
-
-        :param table_name: The name of the table to insert into.
-        :param data: A dictionary of column names and values.
-        :return: True if insertion was successful, False otherwise.
+        Executes a SQL query against the database with multiple sets of parameters.
+        
+        :param query: The SQL query to execute.
+        :param data: A list of tuples containing parameters for each execution.
         """
-        if not self.validator.validate(table_name, data):
-            # The validator prints detailed error messages.
-            return False
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.executemany(query, data)
 
-        columns = tuple(data.keys())
-        values = tuple(data.values())
-
-        # Using PostgreSQL-style parameter placeholders
-        column_names_str = ', '.join(f'"{col}"' for col in columns)
-        placeholders = ', '.join(['%s'] * len(values))
-        sql = f"INSERT INTO \"{table_name}\" ({column_names_str}) VALUES ({placeholders})"
-
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute(sql, values)
-            return True
-        except psycopg2.Error as e:
-            print(f"Database error on insert into '{table_name}': {e}")
-            return False
+    def execute_as_transaction(self, queries: List[Tuple[str, Optional[Tuple[Any, ...]]]]) -> None:
+        """
+        Executes multiple SQL queries as a single transaction.
+        
+        :param queries: A list of tuples where each tuple contains a SQL query and its parameters.
+        """
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                for query, params in queries:
+                    cursor.execute(query, params)
