@@ -1,10 +1,9 @@
-from brad.sql.objects import Table, Column, PrimaryKey, Unique, BigInt, Text, Integer, Numeric, \
-    GeneratedIdentityOptions
-
+from brad.sql.objects import Table, Column, PrimaryKey, Unique, GeneratedIdOptions
+from brad.sql.types import Integer, BigInt, Numeric, Text
 
 TEST_TABLES = [
     Table('users').set_columns(
-        Column('id', BigInt(), generated_identity=GeneratedIdentityOptions.ALWAYS),
+        Column('id', BigInt(), generated_identity=GeneratedIdOptions.ALWAYS),
         Column('name', Text(), not_null=True),
         Column('age', Integer())
     ).set_constraint(
@@ -18,7 +17,7 @@ TEST_TABLES = [
         PrimaryKey(['sku'])
     ),
     Table('product_types').set_columns(
-        Column('id', BigInt(), generated_identity=GeneratedIdentityOptions.BY_DEFAULT),
+        Column('id', BigInt(), generated_identity=GeneratedIdOptions.BY_DEFAULT),
         Column('type', Text(), not_null=True),
     )
 ]
