@@ -31,11 +31,10 @@ ACCOUNT_TYPE = Table('account_type').set_columns(
     Row(id=1, name='Checking', name_pt='Conta corrente'),
     Row(id=2, name='Savings', name_pt='Conta poupança'),
     Row(id=3, name='Credit Card', name_pt='Cartão de crédito'),
-    Row(id=4, name='Investment', name_pt='Investimento'),
-    Row(id=5, name='Loan', name_pt='Empréstimo'),
-    Row(id=6, name='Mortgage', name_pt='Hipoteca'),
-    Row(id=7, name='Cash', name_pt='Dinheiro'),
-    Row(id=8, name='Other', name_pt='Outros')
+    Row(id=4, name='Loan', name_pt='Empréstimo'),
+    Row(id=5, name='Mortgage', name_pt='Hipoteca'),
+    Row(id=6, name='Cash', name_pt='Dinheiro'),
+    Row(id=7, name='Other', name_pt='Outros')
 )
 
 FINANCIAL_PRODUCT_TYPE = Table('financial_product_type').set_columns(
@@ -51,9 +50,14 @@ FINANCIAL_PRODUCT_TYPE = Table('financial_product_type').set_columns(
     Row(id=1, name='Stock', name_pt='Acção'),
     Row(id=2, name='Bond', name_pt='Título'),
     Row(id=3, name='Investment Fund', name_pt='Fundo de investimento'),
-    Row(id=4, name='Exchange-Traded Fund (ETF)', name_pt='Fundo de índice (ETF)'),
-    Row(id=5, name='Real Estate Investment Trust (REIT)', name_pt='Fundo de investimento imobiliário'),
-    Row(id=6, name='Cryptocurrency', name_pt='Criptomoeda')
+    Row(id=4, name='Pension Investment Fund', name_pt='Fundo de investimento / PPR'),
+    Row(id=5, name='Cash ISA', name_pt='ISA dinheiro'),
+    Row(id=6, name='Stocks and Shares ISA', name_pt='ISA acções e títulos'),
+    Row(id=7, name='Peer-to-Peer Lending', name_pt='Empréstimo P2P'),
+    Row(id=8, name='Fractional Shares', name_pt='Acções fraccionadas'),
+    Row(id=9, name='Exchange-Traded Fund (ETF)', name_pt='Fundo de índice (ETF)'),
+    Row(id=10, name='Real Estate Investment Trust (REIT)', name_pt='Fundo de investimento imobiliário'),
+    Row(id=11, name='Cryptocurrency', name_pt='Criptomoeda')
 )
 
 TRANSACTION_TYPE = Table('transaction_type').set_columns(
@@ -227,6 +231,7 @@ PRODUCT_TRANSACTION = Table('product_transaction').set_columns(
     Column('financial_product_id', BIGINT, not_null=True, default=-1),
     Column('transaction_type_id', BIGINT, not_null=True, default=-1),
     Column('transaction_amount', NUMERIC_19_5, not_null=True),
+    Column('transaction_amount_eur', NUMERIC_19_5),
     Column('units', NUMERIC_19_5),
     Column('unit_value', NUMERIC_19_5)
 ).set_constraint(
