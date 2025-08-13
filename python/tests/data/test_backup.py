@@ -1,12 +1,11 @@
-import os
 import json
+import os
 import tempfile
 import unittest
-from unittest.mock import patch, mock_open, call
 from datetime import datetime
 from decimal import Decimal
 from random import randbytes
-
+from unittest.mock import patch, mock_open, call
 
 from brad.data.backup import (
     _create_type_map,
@@ -16,7 +15,6 @@ from brad.data.backup import (
     load_backup_file,
     restore_backup
 )
-from brad.data.backup import datetime as backup_datetime
 
 
 class TestBackupHelperMethods(unittest.TestCase):
@@ -40,12 +38,12 @@ class TestBackupHelperMethods(unittest.TestCase):
         """Test type map creation for simple data structures."""
         data = self.simple_data
         type_map = _create_type_map(data)
-        
+
         expected = {
             "decimal": "Decimal"
         }
         self.assertEqual(expected, type_map)
-        
+
     def test_create_type_map_list(self):
         """Test type map creation for lists with non-JSON-serializable types."""
         test_data = {"dates": [datetime(2023, 1, 1), datetime(2023, 1, 2)]}
@@ -65,7 +63,7 @@ class TestBackupHelperMethods(unittest.TestCase):
             'product_values[].value': 'Decimal'
         }
         self.assertEqual(expected, type_map)
-        
+
     def test_create_type_map_empty(self):
         """Test type map creation for data structures without non-JSON-serializable types."""
         data = {"balances": [{"account_name": "foobar", "date": 20250131, "amount": 1000.50}]}
@@ -77,7 +75,7 @@ class TestBackupHelperMethods(unittest.TestCase):
         """Test serialization with empty metadata."""
         result = _serialize_to_json(self.simple_data, metadata={})
         self.assertIsInstance(result, str)
-        
+
         deserialized_result = json.loads(result)
 
         self.assertEqual({"data", "_metadata"}, set(deserialized_result.keys()))
@@ -91,7 +89,7 @@ class TestBackupHelperMethods(unittest.TestCase):
         self.assertIsNone(deserialized_result["_metadata"]['source'])
         self.assertIsNone(deserialized_result["_metadata"]['file_name'])
         self.assertEqual({"decimal": "Decimal"}, deserialized_result["_metadata"]['type_map'])
-        
+
     def test_serialize_to_json_with_metadata(self):
         """Test serialization with metadata."""
         timestamp = datetime.now().isoformat()
@@ -102,7 +100,7 @@ class TestBackupHelperMethods(unittest.TestCase):
         }
         result = _serialize_to_json(self.simple_data, metadata)
         self.assertIsInstance(result, str)
-        
+
         deserialized_result = json.loads(result)
         expected_metadata = {
             "version": "0.1",
@@ -117,7 +115,7 @@ class TestBackupHelperMethods(unittest.TestCase):
         """Test restoration of Decimal types."""
         type_map = {"value": "Decimal"}
         result = _restore_types("100.50", type_map, "value")
-        
+
         self.assertIsInstance(result, Decimal)
         self.assertEqual(result, Decimal("100.50"))
 
@@ -126,7 +124,7 @@ class TestBackupHelperMethods(unittest.TestCase):
         dt_str = "2023-01-01T12:00:00"
         type_map = {"date": "datetime"}
         result = _restore_types(dt_str, type_map, "date")
-        
+
         self.assertIsInstance(result, datetime)
         self.assertEqual(result, datetime.fromisoformat(dt_str))
 
@@ -144,7 +142,6 @@ class TestBackupData(unittest.TestCase):
         self.serialized_data = json.dumps(self.test_data)
         self.file_name = "test_backup"
         self.metadata = {"source": None, "file_name": self.file_name}
-
 
     def test_backup_data_json(self, mock_serialize, mock_makedirs, mock_path_exists, mock_open_file):
         """Test the backup_data function with 'json' format."""
@@ -190,8 +187,9 @@ class TestBackupData(unittest.TestCase):
         self.assertIn(call().write(self.serialized_data.encode('utf-8')), mock_open_file.mock_calls)
         self.assertEqual(call().close(), mock_open_file.mock_calls[-1])
 
-    @patch ('brad.data.backup.encrypt_string')
-    def test_back_up_data_encrypted(self, mock_encrypt, mock_serialize, mock_makedirs, mock_path_exists, mock_open_file):
+    @patch('brad.data.backup.encrypt_string')
+    def test_back_up_data_encrypted(self, mock_encrypt, mock_serialize, mock_makedirs, mock_path_exists,
+                                    mock_open_file):
         """Test the backup_data function with 'binary' format and encryption."""
 
         mock_serialize.return_value = self.serialized_data
@@ -210,7 +208,7 @@ class TestBackupData(unittest.TestCase):
         # Assert that data encryption was called
         mock_encrypt.assert_called_once_with(self.serialized_data)
 
-        #Assert that the file was opened in write mode, data was written, and file was closed in the end
+        # Assert that the file was opened in write mode, data was written, and file was closed in the end
         mock_open_file.assert_called_once_with(file_path, 'wb')
         self.assertIn(call().write(mock_encrypt.return_value), mock_open_file.mock_calls)
         self.assertEqual(call().close(), mock_open_file.mock_calls[-1])
@@ -229,7 +227,7 @@ class TestBackupData(unittest.TestCase):
 
 class TestRestoreBackup(unittest.TestCase):
     """Test cases for backup restoration."""
-    
+
     def setUp(self):
         self.test_data = {
             "balances": [
@@ -252,11 +250,11 @@ class TestRestoreBackup(unittest.TestCase):
             "data": self.test_data
         }, ensure_ascii=False, default=str)
         self.binary_data = self.json_data.encode('utf-8')
-    
+
     def test_load_backup_file_json(self):
         """Test loading a JSON backup file."""
         file_name = "test_backup.json"
-        
+
         with patch('builtins.open', mock_open(read_data=self.json_data)) as mock_open_file:
             loaded_data = load_backup_file(file_name)
             mock_open_file.assert_called_once_with(file_name, 'r')
@@ -269,7 +267,7 @@ class TestRestoreBackup(unittest.TestCase):
         """Test loading a binary backup file with no encryption."""
         file_name = "test_backup.b"
         mock_decrypt.side_effect = Exception()
-        
+
         with patch('builtins.open', mock_open(read_data=self.binary_data)) as mock_open_file:
             loaded_data = load_backup_file(file_name)
             mock_open_file.assert_called_once_with(file_name, 'rb')
@@ -277,35 +275,34 @@ class TestRestoreBackup(unittest.TestCase):
 
         mock_decrypt.assert_called_once_with(self.binary_data)
         self.assertEqual(json.loads(self.json_data), loaded_data)
-    
+
     @patch('brad.data.backup.decrypt_string')
     def test_load_backup_file_binary_encrypted(self, mock_decrypt):
         """Test loading a binary backup file with encryption."""
         file_name = "test_backup.b"
         mock_decrypt.return_value = self.binary_data
-        
+
         with patch('builtins.open', mock_open(read_data=self.binary_data)) as mock_open_file:
             loaded_data = load_backup_file(file_name)
             mock_open_file.assert_called_once_with(file_name, 'rb')
             self.assertEqual(call().close(), mock_open_file.mock_calls[-1])
-            
+
         mock_decrypt.assert_called_once_with(self.binary_data)
         self.assertEqual(json.loads(self.json_data), loaded_data)
-        
+
     def test_load_backup_file_invalid_format(self):
         """Test loading a backup file with unsupported format."""
         file_name = "test_backup.txt"
         with self.assertRaises(ValueError):
             load_backup_file(file_name)
-    
-    @patch('builtins.open', side_effect=FileNotFoundError("File not found"))        
+
+    @patch('builtins.open', side_effect=FileNotFoundError("File not found"))
     def test_load_backup_file_not_found(self, mock_open_file):
         """Test loading a backup file that does not exist."""
         file_name = "non_existent_file.json"
         with self.assertRaises(FileNotFoundError):
             load_backup_file(file_name)
-    
-    
+
     @patch('builtins.open', new_callable=mock_open, read_data=b'\x80\x81\x82')
     @patch('brad.data.backup.decrypt_string', side_effect=Exception())
     def test_load_backup_file_binary_decode_error(self, mock_open_file, mock_decrypt):
@@ -329,10 +326,10 @@ class TestRestoreBackup(unittest.TestCase):
                                              mock_load.return_value["_metadata"]["type_map"])
         self.assertEqual(self.test_data, restored_data)
 
-    
+
 class TestBackupRoundTrip(unittest.TestCase):
     """Test cases for complete backup and restore roundtrip."""
-    
+
     def setUp(self):
         self.test_data = {
             "balances": [
@@ -340,7 +337,7 @@ class TestBackupRoundTrip(unittest.TestCase):
                 {"account_name": "foobar", "date": datetime(2023, 1, 2), "amount": Decimal("2500.75")}
             ],
             "product_values": [
-                {"product_name": "baz", "date": datetime(2023, 1, 1), "units": Decimal("10.0"), 
+                {"product_name": "baz", "date": datetime(2023, 1, 1), "units": Decimal("10.0"),
                  "investment": Decimal("1000.00"), "value": Decimal("1200.00")}
             ]
         }
@@ -351,15 +348,15 @@ class TestBackupRoundTrip(unittest.TestCase):
         # Create temporary directory for test
         with tempfile.TemporaryDirectory() as temp_dir:
             backup_path = os.path.join(temp_dir, "balances")
-    
+
             with patch('brad.data.backup.BACKUP_DIR', backup_path):
                 # Backup data
                 backup_data(self.test_file_name, self.test_data, fmt="json")
-    
+
                 # Restore data
                 backup_file_path = os.path.join(backup_path, self.test_file_name + ".json")
                 restored_data = restore_backup(backup_file_path)
-    
+
                 # Verify data integrity
                 self.assertEqual(self.test_data, restored_data)
 

@@ -3,21 +3,22 @@ from unittest.mock import patch
 
 from brad.data.reference import get_label_map, get_account_label_map, get_financial_product_label_map
 
+
 @patch('brad.data.reference.REFERENCE_DATA', {
-        'accounts': [
-            {'_historylabel': 'account1', 'name': 'Account One'},
-            {'_historylabel': 'account2', 'name': 'Account Two'},
-            {'name': 'No Label'}
-        ],
-        'financial_products': [
-            {'_historylabel': 'product1', 'name': 'Product One'},
-            {'_historylabel': 'product2', 'name': 'Product Two'},
-            {'name': 'No Label'}
-        ]
+    'accounts': [
+        {'_historylabel': 'account1', 'name': 'Account One'},
+        {'_historylabel': 'account2', 'name': 'Account Two'},
+        {'name': 'No Label'}
+    ],
+    'financial_products': [
+        {'_historylabel': 'product1', 'name': 'Product One'},
+        {'_historylabel': 'product2', 'name': 'Product Two'},
+        {'name': 'No Label'}
+    ]
 })
 class TestReference(unittest.TestCase):
     """Test cases for reference data functions."""
-    
+
     def test_get_label_map(self):
         """Test that get_label_map returns a correct mapping."""
         reference_data = [
@@ -37,7 +38,7 @@ class TestReference(unittest.TestCase):
         reference_data = []
         result = get_label_map(reference_data)
         self.assertEqual({}, result)
-    
+
     def test_get_account_label_map(self):
         """Test that get_account_label_map returns a correct mapping."""
         expected = {
@@ -46,7 +47,7 @@ class TestReference(unittest.TestCase):
         }
         result = get_account_label_map()
         self.assertEqual(expected, result)
-        
+
     def test_get_financial_product_label_map(self):
         """Test that get_financial_product_label_map returns a correct mapping."""
         expected = {
