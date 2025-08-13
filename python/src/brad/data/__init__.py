@@ -1,10 +1,9 @@
-import os
 import json
+import os
 
 import yaml
 
 from brad import DATA_DIR, BACKUP_DIR
-
 
 HISTORY_FILE = os.path.join(DATA_DIR, "excel", "historical.ods")
 

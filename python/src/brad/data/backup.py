@@ -1,6 +1,6 @@
-import os
 import json
 import logging
+import os
 from datetime import datetime
 from decimal import Decimal
 from typing import Dict, Any
@@ -33,7 +33,7 @@ def _create_type_map(value: Any, path: str = "") -> Dict[str, str]:
     # Types that JSON cannot natively serialize
     NON_JSON_TYPES = {datetime, Decimal}
     type_map = {}
-    
+
     if isinstance(value, dict):
         for key, val in value.items():
             current_path = f"{path}.{key}" if path else key
@@ -50,7 +50,7 @@ def _create_type_map(value: Any, path: str = "") -> Dict[str, str]:
         # Leaf value - only record if it's a non-JSON-serializable type
         if type(value) in NON_JSON_TYPES:
             type_map[path] = type(value).__name__
-    
+
     return type_map
 
 
@@ -63,7 +63,7 @@ def _serialize_to_json(data: Dict[str, Any], metadata: Dict[str, str]) -> str:
     :param metadata: Dictionary with metadata to include in the JSON
     :return: JSON string with metadata included.
     """
-    
+
     type_map = _create_type_map(data)
     backup_metadata = {
         "version": "0.1",
@@ -100,20 +100,20 @@ def _restore_types(data: Any, type_map: Dict[str, str], path: str = "") -> Any:
             return Decimal(str(data))
         elif target_type == "datetime":
             return datetime.fromisoformat(data)
-    
+
     # Recursively process dictionaries and lists
     if isinstance(data, dict):
-        return {key: _restore_types(value, type_map, f"{path}.{key}" if path else key) 
+        return {key: _restore_types(value, type_map, f"{path}.{key}" if path else key)
                 for key, value in data.items()}
     elif isinstance(data, list):
         element_path = f"{path}[]"
         return [_restore_types(item, type_map, element_path) for item in data]
-    
+
     return data
 
 
 def backup_data(backup_file_name: str, data: dict, source: str = None, fmt: str = "json", encrypt: bool = False) \
-    -> None:
+        -> None:
     """
     Create a backup of the provided data in the specified format.
     
@@ -128,13 +128,13 @@ def backup_data(backup_file_name: str, data: dict, source: str = None, fmt: str 
         raise ValueError(f"Unsupported format: '{fmt}'. Supported formats are 'json' and 'binary'.")
 
     json_data = _serialize_to_json(data, metadata={"source": source, "file_name": backup_file_name})
-    
+
     extension = ".json" if fmt == "json" else ".b" if fmt == "binary" else ""
     file_path = os.path.join(BACKUP_DIR, backup_file_name) + extension
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     if os.path.exists(file_path):
-            logger.warning(f"Backup file '{file_path}' already exists and will be overwritten.")
-    
+        logger.warning(f"Backup file '{file_path}' already exists and will be overwritten.")
+
     match fmt:
         case "json":
             try:
@@ -145,7 +145,7 @@ def backup_data(backup_file_name: str, data: dict, source: str = None, fmt: str 
             except Exception as e:
                 logger.error(f"Failed to create JSON backup: {e}")
                 raise
-    
+
         case "binary":
             try:
                 if encrypt:
@@ -178,11 +178,11 @@ def load_backup_file(file_path: str) -> Dict[str, Any]:
         if file_path.endswith('.json'):
             with open(file_path, "r") as f:
                 return json.load(f)
-        
+
         elif file_path.endswith('.b'):
             with open(file_path, "rb") as f:
                 raw_data = f.read()
-            
+
             # Try to decrypt first, fall back to plain text if decryption fails
             try:
                 json_string = decrypt_string(raw_data)
@@ -192,12 +192,12 @@ def load_backup_file(file_path: str) -> Dict[str, Any]:
                     json_string = raw_data.decode('utf-8')
                 except UnicodeDecodeError:
                     raise ValueError("Binary file is neither encrypted nor valid UTF-8 text")
-            
+
             return json.loads(json_string)
-        
+
         else:
             raise ValueError(f"Unsupported file format: {file_path}.")
-            
+
     except FileNotFoundError:
         logger.error(f"Backup file not found at: {file_path}")
         raise
@@ -219,16 +219,16 @@ def restore_backup(file_path: str) -> Dict[str, Any]:
     try:
         # Load raw backup data
         backup_data = load_backup_file(file_path)
-        
+
         # Restore types using metadata
         data = backup_data["data"]
         type_map = backup_data["_metadata"]["type_map"]
-    
+
         restored_data = _restore_types(data, type_map)
-        
+
         logger.info(f"Data restored successfully from '{file_path}'.")
         return restored_data
-        
+
     except Exception as e:
         logger.error(f"Error restoring from backup file: {e}")
         raise

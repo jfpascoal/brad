@@ -1,13 +1,14 @@
-import pandas as pd
 import re
-from typing import List, Dict
-from decimal import Decimal
 from collections import defaultdict, namedtuple
+from decimal import Decimal
 from logging import getLogger
+from typing import List, Dict
+
+import pandas as pd
 
 from brad.data import TABS, HISTORY_FILE
-from brad.data.reference import get_account_label_map, get_financial_product_label_map
 from brad.data.backup import backup_data
+from brad.data.reference import get_account_label_map, get_financial_product_label_map
 
 logger = getLogger(__name__)
 
@@ -132,7 +133,7 @@ def ingest_from_excel(history_file: str = HISTORY_FILE, tabs: Dict[str, List[str
         if not product_name:
             logger.warning(f"Product label not found in reference data: '{product_lbl}'. Skipping product.")
             continue
-        
+
         for value in values:
             value_dict = value._asdict() | {'financial_product_name': product_name}
             data['product_value'].append(value_dict)

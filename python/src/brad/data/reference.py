@@ -3,7 +3,6 @@ from typing import List, Dict
 from brad.data import REFERENCE_DATA
 
 
-
 def get_label_map(reference_data: List[Dict]) -> Dict[str, str]:
     return {ref.get('_historylabel'): ref.get('name')
             for ref in reference_data
