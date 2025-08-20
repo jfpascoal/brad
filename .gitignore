@@ -1,6 +1,7 @@
 # Project folders
 /data/
 /docker/secrets/
+/config/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
