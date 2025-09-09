@@ -9,6 +9,7 @@ ROOT_DIR = os.path.abspath(os.path.join(
 
 DATA_DIR = os.path.join(ROOT_DIR, 'data')
 BACKUP_DIR = os.path.join(DATA_DIR, 'backup')
+CONFIG_DIR = os.path.join(ROOT_DIR, 'config')
 
 SECRETS_DIR = os.path.abspath(os.path.join(
     ROOT_DIR,
