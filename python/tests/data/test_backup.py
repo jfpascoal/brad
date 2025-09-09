@@ -5,7 +5,7 @@ import unittest
 from datetime import datetime
 from decimal import Decimal
 from random import randbytes
-from unittest.mock import patch, mock_open, call
+from unittest.mock import patch, mock_open, call, MagicMock
 
 from brad.data.backup import (
     _create_type_map,
@@ -315,11 +315,13 @@ class TestRestoreBackup(unittest.TestCase):
     @patch('brad.data.backup.load_backup_file')
     def test_restore_backup(self, mock_load, mock_restore):
         """Test restoring a backup file."""
+        
         file_name = "test_backup.json"
+        mock_db = MagicMock()
         mock_load.return_value = json.loads(self.json_data)
         mock_restore.return_value = self.test_data
 
-        restored_data = restore_backup(file_name)
+        restored_data = restore_backup(file_name, mock_db)
 
         mock_load.assert_called_once_with(file_name)
         mock_restore.assert_called_once_with(mock_load.return_value["data"],
@@ -355,7 +357,8 @@ class TestBackupRoundTrip(unittest.TestCase):
 
                 # Restore data
                 backup_file_path = os.path.join(backup_path, self.test_file_name + ".json")
-                restored_data = restore_backup(backup_file_path)
+                mock_db = MagicMock()
+                restored_data = restore_backup(backup_file_path, mock_db)
 
                 # Verify data integrity
                 self.assertEqual(self.test_data, restored_data)
@@ -373,7 +376,8 @@ class TestBackupRoundTrip(unittest.TestCase):
                 backup_data(self.test_file_name, self.test_data, fmt="binary", encrypt=False)
 
                 backup_file_path = os.path.join(backup_path, self.test_file_name + ".b")
-                restored_data = restore_backup(backup_file_path)
+                mock_db = MagicMock()
+                restored_data = restore_backup(backup_file_path, mock_db)
 
         mock_encrypt.assert_not_called()
         self.assertEqual(self.test_data, restored_data)
@@ -416,7 +420,8 @@ class TestBackupRoundTrip(unittest.TestCase):
                 with open(backup_file_path, 'rb') as f:
                     self.assertEqual(mock_encrypt.return_value, f.read())
 
-                restored_data = restore_backup(backup_file_path)
+                mock_db = MagicMock()
+                restored_data = restore_backup(backup_file_path, mock_db)
 
         mock_encrypt.assert_called_once()
         mock_decrypt.assert_called_once_with(mock_encrypt.return_value)
