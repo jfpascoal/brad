@@ -229,6 +229,41 @@ class Unique(Constraint):
         super().__init__(f'UNIQUE ({cols_str})', name)
 
 
+class Schema:
+    """Represents a database schema, which is a collection of tables and other database objects."""
+    def __init__(self, name: str):
+        """
+        Initializes a Schema object representing a database schema.
+        
+        :param name: The name of the database schema.
+        """
+        self.name = name
+        
+    def drop(self, conn: Connection) -> Self:
+        """
+        Drops the schema from the database.
+        :param conn: A psycopg Connection instance.
+        :return: The Schema instance to allow for method chaining.
+        """
+        sql = f'DROP SCHEMA IF EXISTS "{self.name}";'
+        logger.info(f"Dropping schema '{self.name}': {sql}")
+        with conn.cursor() as cursor:
+            cursor.execute(sql)
+        return self
+    
+    def create(self, conn: Connection) -> Self:
+        """
+        Creates the schema in the database.
+        :param conn: A psycopg Connection instance.
+        :return: The Schema instance to allow for method chaining.
+        """
+        sql = f'CREATE SCHEMA IF NOT EXISTS "{self.name}";'
+        logger.info(f"Creating schema '{self.name}': {sql}")
+        with conn.cursor() as cursor:
+            cursor.execute(sql)
+        return self
+
+
 class Table:
     """
     Represents a database table schema definition with columns, constraints, and seed data.
@@ -237,16 +272,21 @@ class Table:
     generating SQL DDL statements, validating data, and performing database operations.
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, db_schema: Schema = None):
         """
         Initializes a Table object representing a database table schema.
         
         :param name: The name of the database table.
+        :param db_schema: The schema of the database table.
         """
-        self.name = name
+        self._name = name if not db_schema else f'"{db_schema.name}"."{name}"'
         self.columns: List[Column] = []
         self.constraints: List[Constraint] = []
         self.seed: List[Row] = []
+        
+    @property
+    def name(self):
+        return self._name
 
     def set_columns(self, *cols: Column) -> Self:
         """
