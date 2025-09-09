@@ -2,20 +2,26 @@ import re
 from collections import defaultdict, namedtuple
 from decimal import Decimal
 from logging import getLogger
-from typing import List, Dict
+from typing import Any, List, Dict
 
 import pandas as pd
 
-from brad.data import TABS, HISTORY_FILE
+from brad.data import HISTORY_FILE, TABS, FINANCIAL_PRODUCT_LABELS
 from brad.data.backup import backup_data
 from brad.data.reference import get_account_label_map, get_financial_product_label_map
+from brad.sql.database import DatabaseManager
+from brad.sql.objects import Row
+from brad.sql.schema import account_balance_tbl, product_value_tbl
 
 logger = getLogger(__name__)
 
-HISTORY_LBL = 'history'
+# Constants
+HISTORY = 'history'
+ACCOUNT_BALANCE = 'account_balance'
+FINANCIAL_PRODUCT_VALUE = 'product_value'
 
 BalanceRow = namedtuple('BalanceRow', ['date', 'balance'])
-ValueRow = namedtuple('ValueRow', ['date', 'units', 'invested_value', 'current_value'])
+ValueRow = namedtuple('ValueRow', ['date', 'units', 'current_value'])
 
 
 def parse_accounts(history_file: str, tabs: List[str]) -> Dict[str, List[BalanceRow]]:
@@ -58,10 +64,10 @@ def parse_financial_products(history_file: str, tabs: List[str]) -> Dict[str, Li
     :param tabs: List of sheet names to process
     :return: Dictionary mapping product names to list of (date, units, investment, value) tuples
     """
-    units_lbl = {'Unidades', 'U.P.'}
-    investment_lbl = {'Valor investido'}
-    value_lbl = {'Valor actual', 'Valor'}
-    pat = re.compile('|'.join(list(units_lbl) + list(investment_lbl) + list(value_lbl)))
+    units_lbl = FINANCIAL_PRODUCT_LABELS.get('units', [])
+    investment_lbl = FINANCIAL_PRODUCT_LABELS.get('investment', [])
+    value_lbl = FINANCIAL_PRODUCT_LABELS.get('value', [])
+    pat = re.compile('|'.join(units_lbl + investment_lbl + value_lbl))
     values = defaultdict(list)
 
     for tab in tabs:
@@ -82,7 +88,7 @@ def parse_financial_products(history_file: str, tabs: List[str]) -> Dict[str, Li
             if lbl in units_lbl:
                 col_map[prod_name]['units'] = col
             elif lbl in investment_lbl:
-                col_map[prod_name]['investment'] = col
+                continue
             elif lbl in value_lbl:
                 col_map[prod_name]['value'] = col
 
@@ -92,7 +98,6 @@ def parse_financial_products(history_file: str, tabs: List[str]) -> Dict[str, Li
             for _, row in df.iterrows():
                 date = row[date_col]
                 units = row[col_map[prod]['units']] if 'units' in col_map[prod] else None
-                investment = row[col_map[prod]['investment']] if 'investment' in col_map[prod] else None
                 value = row[col_map[prod]['value']] if 'value' in col_map[prod] else None
 
                 # Skip if value is missing or zero
@@ -102,41 +107,50 @@ def parse_financial_products(history_file: str, tabs: List[str]) -> Dict[str, Li
                 values[prod].append(ValueRow(
                     date=date.to_pydatetime(),
                     units=Decimal(str(units)) if units is not None else units,
-                    invested_value=Decimal(str(investment)) if investment is not None else investment,
                     current_value=Decimal(str(value)) if value is not None else value
                 ))
 
     return dict(values)
 
 
-def ingest_from_excel(history_file: str = HISTORY_FILE, tabs: Dict[str, List[str]] = TABS):
+def ingest_from_excel(history_file: str, ingest_reference: bool, tabs: Dict[str, List[str]] = TABS) \
+        -> Dict[str, List[Dict[str, Any]]]:
     data = defaultdict(list)
-
+    history_file = history_file or HISTORY_FILE
+    logger.info(f"Loading historical data from '{history_file}'...")
+    logger.info(f"Tab config: {tabs}")
+    
     # Process account balances
     account_labels = get_account_label_map()
+    logger.debug(f"Account labels: {account_labels}")
     accounts = parse_accounts(history_file, tabs['accounts'])
     for account_lbl, balances in accounts.items():
         account_name = account_labels.get(account_lbl)
+        logger.info(f"Processing account: {account_name}")
         if not account_name:
             logger.warning(f"Account label not found in reference data: '{account_lbl}'. Skipping account.")
             continue
 
         for balance in balances:
             balance_dict = balance._asdict() | {'account_name': account_name}
-            data['account_balance'].append(balance_dict)
+            data[ACCOUNT_BALANCE].append(balance_dict)
+        logger.info(f"Processed {len(balances)} balances for account '{account_name}'.")
 
     # Process financial product values
     product_labels = get_financial_product_label_map()
+    logger.debug(f"Financial product labels: {product_labels}")
     financial_products = parse_financial_products(history_file, tabs['financial_products'])
     for product_lbl, values in financial_products.items():
         product_name = product_labels.get(product_lbl)
+        logger.info(f"Processing financial product: {product_name}")
         if not product_name:
             logger.warning(f"Product label not found in reference data: '{product_lbl}'. Skipping product.")
             continue
 
         for value in values:
             value_dict = value._asdict() | {'financial_product_name': product_name}
-            data['product_value'].append(value_dict)
+            data[FINANCIAL_PRODUCT_VALUE].append(value_dict)
+        logger.info(f"Processed {len(values)} values for financial product '{product_name}'.")
 
-    # Backup the processed data
-    backup_data('history', data=data, source='excel', fmt='json')
+    return dict(data)
+    
