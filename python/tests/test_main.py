@@ -1,7 +1,7 @@
 import re
 import unittest
 from unittest.mock import patch, MagicMock
-from brad.main import parse_args, initialize_db, MethodOptions
+from brad.main import parse_args, initialize_db, load_history, MethodOptions
 
 
 class TestParseArgs(unittest.TestCase):
@@ -96,14 +96,13 @@ class TestMethodOptions(unittest.TestCase):
         self.assertTrue(self.options.no_seed)
         self.assertEqual(10, self.options.count)
 
-
+@patch('brad.main.create_schema')
+@patch('brad.main.DatabaseManager')
 class TestInitializeDb(unittest.TestCase):
     """
     Tests for the initialize_db function.
     """
 
-    @patch('brad.main.create_schema')
-    @patch('brad.main.DatabaseManager')
     def test_initialize_db_default_behavior(self, mock_db_manager, mock_create_schema):
         """Test default behavior seeds data without flags."""
         mock_db_instance = MagicMock()
@@ -115,8 +114,6 @@ class TestInitializeDb(unittest.TestCase):
         mock_create_schema.assert_called_once_with(mock_db_instance, force=False, seed=True)
         self.assertEqual(mock_db_instance, result)
 
-    @patch('brad.main.create_schema')
-    @patch('brad.main.DatabaseManager')
     def test_initialize_db_with_force_flag(self, mock_db_manager, mock_create_schema):
         """Test force flag handling."""
         mock_db_instance = MagicMock()
@@ -128,8 +125,6 @@ class TestInitializeDb(unittest.TestCase):
         mock_create_schema.assert_called_once_with(mock_db_instance, force=True, seed=True)
         self.assertEqual(mock_db_instance, result)
 
-    @patch('brad.main.create_schema')
-    @patch('brad.main.DatabaseManager')
     def test_initialize_db_with_force_long_flag(self, mock_db_manager, mock_create_schema):
         """Test --force flag handling."""
         mock_db_instance = MagicMock()
@@ -141,8 +136,6 @@ class TestInitializeDb(unittest.TestCase):
         mock_create_schema.assert_called_once_with(mock_db_instance, force=True, seed=True)
         self.assertEqual(mock_db_instance, result)
 
-    @patch('brad.main.create_schema')
-    @patch('brad.main.DatabaseManager')
     def test_initialize_db_with_no_seed_flag(self, mock_db_manager, mock_create_schema):
         """Test --no-seed flag disables seeding."""
         mock_db_instance = MagicMock()
@@ -154,8 +147,6 @@ class TestInitializeDb(unittest.TestCase):
         mock_create_schema.assert_called_once_with(mock_db_instance, force=False, seed=False)
         self.assertEqual(mock_db_instance, result)
 
-    @patch('brad.main.create_schema')
-    @patch('brad.main.DatabaseManager')
     def test_initialize_db_with_both_flags(self, mock_db_manager, mock_create_schema):
         """Test both force and no-seed flags together."""
         mock_db_instance = MagicMock()
@@ -167,8 +158,6 @@ class TestInitializeDb(unittest.TestCase):
         mock_create_schema.assert_called_once_with(mock_db_instance, force=True, seed=False)
         self.assertEqual(mock_db_instance, result)
 
-    @patch('brad.main.create_schema')
-    @patch('brad.main.DatabaseManager')
     def test_initialize_db_with_unknown_option(self, mock_db_manager, mock_create_schema):
         """Test warning is printed for unknown options."""
         mock_db_instance = MagicMock()
@@ -179,6 +168,143 @@ class TestInitializeDb(unittest.TestCase):
         mock_db_manager.assert_called_once()
         mock_create_schema.assert_called_once_with(mock_db_instance, force=False, seed=True)
         self.assertEqual(mock_db_instance, result)
+
+@patch('brad.main.backup_data')
+@patch('brad.main.write_to_db')
+@patch('brad.main.ingest_from_excel')
+@patch('brad.main.DatabaseManager')
+class TestLoadHistory(unittest.TestCase):
+    """
+    Tests for the load_history function.
+    """
+
+    def test_load_history_no_options(self, mock_db_manager, mock_ingest, mock_write, mock_backup):
+        """Test load_history with no command line options."""
+        mock_db_instance = MagicMock()
+        mock_db_manager.return_value = mock_db_instance
+        mock_data = {'test': 'data'}
+        mock_ingest.return_value = mock_data
+
+        load_history([])
+
+        mock_db_manager.assert_called_once()
+        mock_ingest.assert_called_once_with(history_file='', ingest_reference=False)
+        mock_write.assert_called_once_with(db=mock_db_instance, data=mock_data)
+        mock_backup.assert_called_once_with(backup_file_name='history', data=mock_data, source='excel', fmt='json')
+
+    def test_load_history_with_file_option(self, mock_db_manager, mock_ingest, mock_write, mock_backup):
+        """Test load_history with file option."""
+        mock_db_instance = MagicMock()
+        mock_db_manager.return_value = mock_db_instance
+        mock_data = {'balances': [], 'product_values': []}
+        mock_ingest.return_value = mock_data
+
+        load_history(['--file', '/path/to/test.xlsx'])
+
+        mock_db_manager.assert_called_once()
+        mock_ingest.assert_called_once_with(history_file='/path/to/test.xlsx', ingest_reference=False)
+        mock_write.assert_called_once_with(db=mock_db_instance, data=mock_data)
+        mock_backup.assert_called_once_with(backup_file_name='history', data=mock_data, source='excel', fmt='json')
+
+    def test_load_history_with_reference_option(self, mock_db_manager, mock_ingest, mock_write, mock_backup):
+        """Test load_history with load-reference option."""
+        mock_db_instance = MagicMock()
+        mock_db_manager.return_value = mock_db_instance
+        mock_data = {'balances': [], 'product_values': []}
+        mock_ingest.return_value = mock_data
+
+        load_history(['--load-reference'])
+
+        mock_db_manager.assert_called_once()
+        mock_ingest.assert_called_once_with(history_file='', ingest_reference=True)
+        mock_write.assert_called_once_with(db=mock_db_instance, data=mock_data)
+        mock_backup.assert_called_once_with(backup_file_name='history', data=mock_data, source='excel', fmt='json')
+
+    def test_load_history_with_both_options(self, mock_db_manager, mock_ingest, mock_write, mock_backup):
+        """Test load_history with both file and load-reference options."""
+        mock_db_instance = MagicMock()
+        mock_db_manager.return_value = mock_db_instance
+        mock_data = {'balances': [], 'product_values': []}
+        mock_ingest.return_value = mock_data
+
+        load_history(['--file', '/path/to/test.xlsx', '--load-reference'])
+
+        mock_db_manager.assert_called_once()
+        mock_ingest.assert_called_once_with(history_file='/path/to/test.xlsx', ingest_reference=True)
+        mock_write.assert_called_once_with(db=mock_db_instance, data=mock_data)
+        mock_backup.assert_called_once_with(backup_file_name='history', data=mock_data, source='excel', fmt='json')
+
+    @patch('brad.main.logger')
+    def test_load_history_with_unknown_option(self, mock_logger, mock_db_manager, mock_ingest, mock_write, mock_backup):
+        """Test load_history with unknown options logs warning."""
+        mock_db_instance = MagicMock()
+        mock_db_manager.return_value = mock_db_instance
+        mock_data = {'balances': [], 'product_values': []}
+        mock_ingest.return_value = mock_data
+
+        load_history(['--unknown-option'])
+
+        mock_logger.warning.assert_called_with("Unknown option '--unknown-option'.")
+        mock_db_manager.assert_called_once()
+        mock_ingest.assert_called_once_with(history_file='', ingest_reference=False)
+        mock_write.assert_called_once_with(db=mock_db_instance, data=mock_data)
+        mock_backup.assert_called_once_with(backup_file_name='history', data=mock_data, source='excel', fmt='json')
+
+    def test_load_history_option_parsing(self, mock_db_manager, mock_ingest, mock_write, mock_backup):
+        """Test that options are correctly parsed and mapped to function parameters."""
+        mock_db_instance = MagicMock()
+        mock_db_manager.return_value = mock_db_instance
+        mock_data = {'balances': [], 'product_values': []}
+        mock_ingest.return_value = mock_data
+
+        # Test that attribute names are correctly mapped to parameter names
+        load_history(['--file', 'test.xlsx', '--load-reference'])
+
+        # Verify that 'load_reference' attribute is mapped to 'ingest_reference' parameter
+        mock_ingest.assert_called_once_with(history_file='test.xlsx', ingest_reference=True)
+
+    def test_load_history_data_flow(self, mock_db_manager, mock_ingest, mock_write, mock_backup):
+        """Test that data flows correctly between functions."""
+        mock_db_instance = MagicMock()
+        mock_db_manager.return_value = mock_db_instance
+        expected_data = {
+            'balances': [{'account': 'test', 'amount': 100}],
+            'product_values': [{'product': 'fund', 'value': 500}]
+        }
+        mock_ingest.return_value = expected_data
+
+        load_history(['--file', 'data.xlsx'])
+
+        # Verify that the same data returned by ingest_from_excel is passed to both write_to_db and backup_data
+        mock_write.assert_called_once_with(db=mock_db_instance, data=expected_data)
+        mock_backup.assert_called_once_with(backup_file_name='history', data=expected_data, source='excel', fmt='json')
+
+    def test_load_history_function_execution_order(self, mock_db_manager, mock_ingest, mock_write, mock_backup):
+        """Test that functions are called in the correct order."""
+        mock_db_instance = MagicMock()
+        mock_db_manager.return_value = mock_db_instance
+        mock_data = {'test': 'data'}
+        mock_ingest.return_value = mock_data
+
+        # Use a manager to track call order
+        manager = MagicMock()
+        manager.attach_mock(mock_db_manager, 'db_manager')
+        manager.attach_mock(mock_ingest, 'ingest')
+        manager.attach_mock(mock_write, 'write')
+        manager.attach_mock(mock_backup, 'backup')
+
+        load_history([])
+
+        # Verify the order of function calls
+        expected_calls = [
+            ('db_manager', (), {}),
+            ('ingest', (), {'history_file': '', 'ingest_reference': False}),
+            ('write', (), {'db': mock_db_instance, 'data': mock_data}),
+            ('backup', (), {'backup_file_name': 'history', 'data': mock_data, 'source': 'excel', 'fmt': 'json'})
+        ]
+        
+        actual_calls = [(name, args, kwargs) for name, args, kwargs in manager.mock_calls]
+        self.assertEqual(expected_calls, actual_calls)
 
 
 if __name__ == "__main__":
