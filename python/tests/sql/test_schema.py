@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 from brad.sql.database import DatabaseManager
-from brad.sql.schema import get_all_tables, create_schema, drop_schema
+from brad.sql.schema import get_all_tables, create_schema
 
 
 class TestSchemaModule(unittest.TestCase):
@@ -49,19 +49,6 @@ class TestSchemaModule(unittest.TestCase):
 
             mock_connection.rollback.assert_called_once()
             mock_logger.error.assert_called_once()
-
-    @patch('brad.sql.schema.logger')
-    def test_drop_schema_success(self, mock_logger):
-        """Test successful schema dropping."""
-        mock_db = MagicMock(spec=DatabaseManager)
-        mock_connection = MagicMock()
-        mock_db.get_connection.return_value.__enter__.return_value = mock_connection
-
-        drop_schema(mock_db)
-
-        # Verify connection was used
-        mock_db.get_connection.assert_called_once()
-        mock_connection.commit.assert_called_once()
 
 
 if __name__ == "__main__":

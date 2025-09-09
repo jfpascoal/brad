@@ -2,7 +2,7 @@ import logging
 from typing import List
 
 from brad.sql.database import DatabaseManager
-from brad.sql.objects import Row, GeneratedIdOptions, Column, PrimaryKey, FkActions, ForeignKey, Unique, Table
+from brad.sql.objects import Row, GeneratedIdOptions, Column, PrimaryKey, FkActions, ForeignKey, Unique, Schema, Table
 from brad.sql.types import BigInt, Numeric, Boolean, Date, Text
 
 logger = logging.getLogger(__name__)
@@ -14,11 +14,15 @@ TEXT = Text()
 NUMERIC_19_5 = Numeric(19, 5)
 BOOLEAN = Boolean()
 
+# Raw schema
+REF = Schema('ref')
+STG = Schema('stg')
+
 # ============================================================================
 # Table definitions
 # ============================================================================
 
-ACCOUNT_TYPE = Table('account_type').set_columns(
+account_type_tbl = Table('account_type', db_schema=REF).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
     Column('name', TEXT, not_null=True),
     Column('name_pt', TEXT)
@@ -37,7 +41,7 @@ ACCOUNT_TYPE = Table('account_type').set_columns(
     Row(id=7, name='Other', name_pt='Outros')
 )
 
-FINANCIAL_PRODUCT_TYPE = Table('financial_product_type').set_columns(
+financial_product_type_tbl = Table('financial_product_type', db_schema=REF).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
     Column('name', TEXT, not_null=True),
     Column('name_pt', TEXT)
@@ -60,7 +64,7 @@ FINANCIAL_PRODUCT_TYPE = Table('financial_product_type').set_columns(
     Row(id=11, name='Cryptocurrency', name_pt='Criptomoeda')
 )
 
-TRANSACTION_TYPE = Table('transaction_type').set_columns(
+transaction_type_tbl = Table('transaction_type', db_schema=REF).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
     Column('name', TEXT, not_null=True),
     Column('name_pt', TEXT)
@@ -75,10 +79,11 @@ TRANSACTION_TYPE = Table('transaction_type').set_columns(
     Row(id=3, name='Dividend', name_pt='Dividendo'),
     Row(id=4, name='Interest', name_pt='Juro'),
     Row(id=5, name='Fee', name_pt='Taxa'),
-    Row(id=6, name='Transfer', name_pt='Transferência')
+    Row(id=6, name='Transfer', name_pt='Transferência'),
+    Row(id=7, name='Bonus', name_pt='Bónus'),
 )
 
-PROVIDER = Table('provider').set_columns(
+provider_tbl = Table('provider', db_schema=REF).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
     Column('name', TEXT, not_null=True),
     Column('country_iso_alpha2', TEXT, not_null=True)
@@ -90,7 +95,7 @@ PROVIDER = Table('provider').set_columns(
     Row(id=-1, name='Unknown', country_iso_alpha2='XX')
 )
 
-HOLDER = Table('holder').set_columns(
+holder_tbl = Table('holder', db_schema=REF).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
     Column('name', TEXT, not_null=True),
     Column('tax_bracket', TEXT)
@@ -102,7 +107,7 @@ HOLDER = Table('holder').set_columns(
     Row(id=-1, name='Unknown')
 )
 
-EXCHANGE_RATES = Table('exchange_rate').set_columns(
+exchange_rate_tbl = Table('exchange_rate', db_schema=REF).set_columns(
     Column('date', DATE, not_null=True),
     Column('base_currency', TEXT, not_null=True),
     Column('target_currency', TEXT, not_null=True),
@@ -111,15 +116,15 @@ EXCHANGE_RATES = Table('exchange_rate').set_columns(
     PrimaryKey(['date', 'base_currency', 'target_currency'], "pk_exchange_rate")
 )
 
-ACCOUNT = Table('account').set_columns(
-    Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
+account_tbl = Table('account', db_schema=STG).set_columns(
+    Column('id', BIGINT, generated_identity=GeneratedIdOptions.ALWAYS),
     Column('name', TEXT, not_null=True),
-    Column('account_type_id', BIGINT, not_null=True, default=-1),
+    Column('account_type', TEXT, not_null=True),
     Column('currency', TEXT, not_null=True),
-    Column('provider_id', BIGINT, not_null=True, default=-1),
-    Column('holder_1_id', BIGINT, not_null=True, default=-1),
-    Column('holder_2_id', BIGINT),
-    Column('holder_3_id', BIGINT),
+    Column('provider_name', TEXT, not_null=True),
+    Column('holder_1', TEXT, not_null=True),
+    Column('holder_2', TEXT),
+    Column('holder_3', TEXT),
     Column('account_number', TEXT),
     Column('sort_code', TEXT),
     Column('iban', TEXT),
@@ -131,62 +136,35 @@ ACCOUNT = Table('account').set_columns(
     PrimaryKey(['id'], "pk_account")
 ).set_constraint(
     Unique(['name'], "unq_account_name")
-).set_constraint(
-    ForeignKey(['account_type_id'], 'account_type', ['id'],
-               on_delete=FkActions.SET_DEFAULT, name="fk_account_account_type")
-).set_constraint(
-    ForeignKey(['provider_id'], 'provider', ['id'],
-               name="fk_account_provider")
-).set_constraint(
-    ForeignKey(['holder_1_id'], 'holder', ['id'],
-               name="fk_account_holder_1")
-).set_constraint(
-    ForeignKey(['holder_2_id'], 'holder', ['id'],
-               name="fk_account_holder_2")
-).set_constraint(
-    ForeignKey(['holder_3_id'], 'holder', ['id'],
-               name="fk_account_holder_3")
-).set_seed(
-    Row(id=-1, name='Unknown', currency='', is_active=False)
 )
 
-ACCOUNT_BALANCE = Table('account_balance').set_columns(
+account_balance_tbl = Table('account_balance', db_schema=STG).set_columns(
     Column('date', DATE, not_null=True),
-    Column('account_id', BIGINT, not_null=True, default=-1),
+    Column('account_name', TEXT, not_null=True),
     Column('balance', NUMERIC_19_5, not_null=True)
 ).set_constraint(
-    PrimaryKey(['date', 'account_id'], "pk_account_balance")
-).set_constraint(
-    ForeignKey(['account_id'], 'account', ['id'],
-               on_delete=FkActions.CASCADE, name="fk_account_balance_account")
+    PrimaryKey(['date', 'account_name'], "pk_account_balance")
 )
 
-ACCOUNT_TRANSACTION = Table('account_transaction').set_columns(
+account_transaction_tbl = Table('account_transaction', db_schema=STG).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.ALWAYS),
     Column('date', DATE, not_null=True),
-    Column('account_id', BIGINT, not_null=True, default=-1),
-    Column('transaction_type_id', BIGINT, not_null=True, default=-1),
+    Column('account_name', TEXT, not_null=True),
+    Column('transaction_type', TEXT, not_null=True),
     Column('transaction_amount', NUMERIC_19_5, not_null=True),
     Column('description', TEXT)
 ).set_constraint(
     PrimaryKey(['id'], "pk_account_transaction")
-).set_constraint(
-    ForeignKey(['account_id'], 'account', ['id'],
-               on_delete=FkActions.CASCADE, name="fk_account_transaction_account_id")
-).set_constraint(
-    ForeignKey(['transaction_type_id'], 'transaction_type',
-               ['id'], on_delete=FkActions.SET_DEFAULT,
-               name="fk_account_transaction_transaction_type")
 )
 
-FINANCIAL_PRODUCT = Table('financial_product').set_columns(
-    Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
+financial_product_tbl = Table('financial_product', db_schema=STG).set_columns(
+    Column('id', BIGINT, generated_identity=GeneratedIdOptions.ALWAYS),
     Column('name', TEXT, not_null=True),
-    Column('financial_product_type_id', BIGINT, not_null=True, default=-1),
+    Column('financial_product_type', TEXT, not_null=True),
     Column('currency', TEXT, not_null=True),
-    Column('linked_account_id', BIGINT, not_null=True, default=-1),
-    Column('provider_id', BIGINT, not_null=True, default=-1),
-    Column('holder_id', BIGINT, not_null=True, default=-1),
+    Column('linked_account_name', TEXT, not_null=True),
+    Column('provider', TEXT, not_null=True),
+    Column('holder', TEXT, not_null=True),
     Column('ticker', TEXT),
     Column('isin', TEXT),
     Column('is_active', BOOLEAN, not_null=True, default=True)
@@ -194,26 +172,11 @@ FINANCIAL_PRODUCT = Table('financial_product').set_columns(
     PrimaryKey(['id'], "pk_financial_product")
 ).set_constraint(
     Unique(['name'], "unq_financial_product_name")
-).set_constraint(
-    ForeignKey(['financial_product_type_id'], 'financial_product_type',
-               ['id'], on_delete=FkActions.SET_DEFAULT,
-               name="fk_financial_product_financial_product_type")
-).set_constraint(
-    ForeignKey(['linked_account_id'], 'account', ['id'],
-               name="fk_financial_product_linked_account")
-).set_constraint(
-    ForeignKey(['provider_id'], 'provider', ['id'],
-               name="fk_financial_product_provider")
-).set_constraint(
-    ForeignKey(['holder_id'], 'holder', ['id'],
-               name="fk_financial_product_holder")
-).set_seed(
-    Row(id=-1, name='Unknown', currency='', is_active=False)
 )
 
-PRODUCT_VALUE = Table('product_value').set_columns(
+product_value_tbl = Table('product_value', db_schema=STG).set_columns(
     Column('date', DATE, not_null=True),
-    Column('financial_product_id', BIGINT, not_null=True, default=-1),
+    Column('financial_product_name', TEXT, not_null=True),
     Column('current_value', NUMERIC_19_5, not_null=True),
     Column('units', NUMERIC_19_5),
     Column('unit_value', NUMERIC_19_5)
@@ -225,26 +188,19 @@ PRODUCT_VALUE = Table('product_value').set_columns(
                name="fk_product_value_financial_product")
 )
 
-PRODUCT_TRANSACTION = Table('product_transaction').set_columns(
+product_transaction_tbl = Table('product_transaction', db_schema=STG).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.ALWAYS),
     Column('date', DATE, not_null=True),
-    Column('financial_product_id', BIGINT, not_null=True, default=-1),
-    Column('transaction_type_id', BIGINT, not_null=True, default=-1),
+    Column('financial_product_name', TEXT, not_null=True),
+    Column('transaction_type', TEXT, not_null=True),
     Column('transaction_amount', NUMERIC_19_5, not_null=True),
     Column('transaction_amount_eur', NUMERIC_19_5),
     Column('units', NUMERIC_19_5),
     Column('unit_value', NUMERIC_19_5)
 ).set_constraint(
     PrimaryKey(['id'], "pk_product_transaction")
-).set_constraint(
-    ForeignKey(['financial_product_id'], 'financial_product',
-               ['id'], on_delete=FkActions.CASCADE,
-               name="fk_product_transaction_financial_product")
-).set_constraint(
-    ForeignKey(['transaction_type_id'], 'transaction_type',
-               ['id'], on_delete=FkActions.SET_DEFAULT,
-               name="fk_product_transaction_transaction_type")
 )
+
 
 
 # ============================================================================
@@ -260,22 +216,22 @@ def get_all_tables() -> List[Table]:
     """
     return [
         # Dimension tables with no dependencies
-        ACCOUNT_TYPE,
-        FINANCIAL_PRODUCT_TYPE,
-        TRANSACTION_TYPE,
-        PROVIDER,
-        HOLDER,
+        account_type_tbl,
+        financial_product_type_tbl,
+        transaction_type_tbl,
+        provider_tbl,
+        holder_tbl,
 
         # Dimension tables with dependencies
-        ACCOUNT,
-        FINANCIAL_PRODUCT,
+        account_tbl,
+        financial_product_tbl,
 
         # Fact tables
-        EXCHANGE_RATES,
-        ACCOUNT_BALANCE,
-        ACCOUNT_TRANSACTION,
-        PRODUCT_VALUE,
-        PRODUCT_TRANSACTION,
+        exchange_rate_tbl,
+        account_balance_tbl,
+        account_transaction_tbl,
+        product_value_tbl,
+        product_transaction_tbl
     ]
 
 
@@ -288,13 +244,23 @@ def create_schema(db_manager: DatabaseManager, force: bool = False, seed: bool =
     :param seed: If True, inserts seed data after table creation.
     :raises Exception: If any database operation fails, triggers rollback.
     """
+
+    schemas = [STG, REF]
     tables = get_all_tables()
     with db_manager.get_connection() as conn:
         try:
             if force:
-                # Drop in reverse order to respect foreign key dependencies
+                # Drop tables in reverse order to respect foreign key dependencies
                 for table in reversed(tables):
                     table.drop(conn)
+                    
+                # Drop schemas
+                for schema in schemas:
+                    schema.drop(conn)
+
+            # Create schemas:
+            for schema in schemas:
+                schema.create(conn)
 
             # Create tables in dependency order
             for table in tables:
@@ -315,22 +281,4 @@ def create_schema(db_manager: DatabaseManager, force: bool = False, seed: bool =
             logger.info("Database schema created successfully.")
 
 
-def drop_schema(db_manager: DatabaseManager) -> None:
-    """
-    Drops the entire database schema.
-    
-    :param db_manager: DatabaseManager instance for database operations.
-    """
-    tables = get_all_tables()
-    with db_manager.get_connection() as conn:
-        try:
-            # Drop in reverse order to respect foreign key dependencies
-            for table in reversed(tables):
-                table.drop(conn)
-        except Exception as e:
-            logger.error(f"Error while dropping schema: {e}")
-            conn.rollback()
-            raise
-        else:
-            conn.commit()
-            logger.info("Database schema dropped successfully.")
+TABLES = {tbl.name: tbl for tbl in get_all_tables()}
