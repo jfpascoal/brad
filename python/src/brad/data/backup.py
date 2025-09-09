@@ -3,10 +3,13 @@ import logging
 import os
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Any
+from typing import Dict, List, Any
 
 from brad import BACKUP_DIR
 from brad.data.encryption import encrypt_string, decrypt_string
+from brad.sql.objects import Row
+from brad.sql.schema import TABLES
+from brad.sql.database import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -207,7 +210,7 @@ def load_backup_file(file_path: str) -> Dict[str, Any]:
         raise ValueError(msg)
 
 
-def restore_backup(file_path: str) -> Dict[str, Any]:
+def restore_backup(file_path: str, db: DatabaseManager) -> Dict[str, Any]:
     """
     Restore data from backup file.
     
@@ -225,10 +228,27 @@ def restore_backup(file_path: str) -> Dict[str, Any]:
         type_map = backup_data["_metadata"]["type_map"]
 
         restored_data = _restore_types(data, type_map)
-
+        write_to_db(db=db, data=restored_data)
         logger.info(f"Data restored successfully from '{file_path}'.")
         return restored_data
 
     except Exception as e:
         logger.error(f"Error restoring from backup file: {e}")
         raise
+    
+
+def write_to_db(db: DatabaseManager, data: List[Dict[str, Any]]) -> None:
+    """
+    Write processed data to the database.
+
+    :param db: An instance of DatabaseManager to interact with the database.
+    :param data: List of dictionaries containing data to insert.
+    """
+    with db.get_connection() as conn:
+        for table_name, tbl in TABLES.items():
+            tbl_data = data.get(table_name, [])
+            if not tbl_data:
+                logger.debug(f"No data to insert in table '{table_name}'.")
+                continue
+            logger.info(f"Inserting {len(tbl_data)} records into table '{table_name}'.")
+            tbl.insert(conn, [Row(row) for row in tbl_data])
