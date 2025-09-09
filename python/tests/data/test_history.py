@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pandas as pd
 
@@ -10,7 +10,10 @@ from brad.data.history import (
     parse_financial_products,
     ingest_from_excel,
     BalanceRow,
-    ValueRow
+    ValueRow,
+    HISTORY,
+    ACCOUNT_BALANCE,
+    FINANCIAL_PRODUCT_VALUE
 )
 
 
@@ -46,41 +49,36 @@ class TestValueRow(unittest.TestCase):
         """Test ValueRow can be created with correct fields."""
         date = datetime(2023, 1, 1)
         units = Decimal('100')
-        invested_value = Decimal('1000.00')
         current_value = Decimal('1200.00')
 
-        row = ValueRow(date=date, units=units, invested_value=invested_value, current_value=current_value)
+        row = ValueRow(date=date, units=units, current_value=current_value)
 
         self.assertEqual(date, row.date)
         self.assertEqual(units, row.units)
-        self.assertEqual(invested_value, row.invested_value)
         self.assertEqual(current_value, row.current_value)
 
     def test_value_row_with_none_values(self):
         """Test ValueRow can be created with None values."""
         date = datetime(2023, 1, 1)
 
-        row = ValueRow(date=date, units=None, invested_value=None, current_value=Decimal('1200.00'))
+        row = ValueRow(date=date, units=None, current_value=Decimal('1200.00'))
 
         self.assertEqual(date, row.date)
         self.assertIsNone(row.units)
-        self.assertIsNone(row.invested_value)
         self.assertEqual(Decimal('1200.00'), row.current_value)
 
     def test_value_row_as_dict(self):
         """Test ValueRow can be converted to dictionary."""
         date = datetime(2023, 1, 1)
         units = Decimal('100')
-        invested_value = Decimal('1000.00')
         current_value = Decimal('1200.00')
 
-        row = ValueRow(date=date, units=units, invested_value=invested_value, current_value=current_value)
+        row = ValueRow(date=date, units=units, current_value=current_value)
         result = row._asdict()
 
         expected = {
             'date': date,
             'units': units,
-            'invested_value': invested_value,
             'current_value': current_value
         }
         self.assertEqual(expected, result)
@@ -181,7 +179,11 @@ class TestParseAccounts(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             parse_accounts(self.test_file, self.test_tabs)
 
-
+@patch('brad.data.history.FINANCIAL_PRODUCT_LABELS', {
+        'units': ['Units', 'U.P.'],
+        'investment': ['Invested value'],
+        'value': ['Current value', 'Value']
+    })
 class TestParseFinancialProducts(unittest.TestCase):
     """Test cases for the parse_financial_products function."""
 
@@ -193,19 +195,20 @@ class TestParseFinancialProducts(unittest.TestCase):
         # Create mock DataFrame with various column patterns
         self.mock_df1 = pd.DataFrame({
             'Date': [pd.Timestamp('2023-01-01'), pd.Timestamp('2023-02-01')],
-            'Product A Unidades': [100.0, 105.0],
-            'Product A Valor investido': [1000.0, 1000.0],
-            'Product A Valor actual': [1200.0, 1300.0],
+            'Product A Units': [100.0, 105.0],
+            'Product A Invested value': [1000.0, 1000.0],
+            'Product A Current value': [1200.0, 1300.0],
             'Product B U.P.': [50.0, 55.0],
-            'Product B Valor': [2000.0, 0.0]  # Second value is zero, should be skipped
+            'Product B Value': [2000.0, 0.0]  # Second value is zero, should be skipped
         })
 
         self.mock_df2 = pd.DataFrame({
             'Date': [pd.Timestamp('2023-01-01'), pd.Timestamp('2023-02-01')],
-            'Product C Unidades': [200.0, 210.0],
-            'Product C Valor': [3000.0, None]  # Second value is None, should be skipped
+            'Product C Units': [200.0, 210.0],
+            'Product C Value': [3000.0, None]  # Second value is None, should be skipped
         })
 
+    
     @patch('brad.data.history.logger')
     @patch('brad.data.history.pd.read_excel')
     def test_parse_financial_products_success(self, mock_read_excel, mock_logger):
@@ -232,7 +235,6 @@ class TestParseFinancialProducts(unittest.TestCase):
         first_entry = product_a_data[0]
         self.assertEqual(datetime(2023, 1, 1), first_entry.date)
         self.assertEqual(Decimal('100.0'), first_entry.units)
-        self.assertEqual(Decimal('1000.0'), first_entry.invested_value)
         self.assertEqual(Decimal('1200.0'), first_entry.current_value)
 
         # Check Product B data (should only have one entry due to zero filtering)
@@ -240,7 +242,6 @@ class TestParseFinancialProducts(unittest.TestCase):
         self.assertEqual(1, len(product_b_data))
         self.assertEqual(datetime(2023, 1, 1), product_b_data[0].date)
         self.assertEqual(Decimal('50.0'), product_b_data[0].units)
-        self.assertIsNone(product_b_data[0].invested_value)  # No investment column
         self.assertEqual(Decimal('2000.0'), product_b_data[0].current_value)
 
         # Check Product C data (should only have one entry due to None filtering)
@@ -273,7 +274,7 @@ class TestParseFinancialProducts(unittest.TestCase):
         """Test handling of products with only some column types."""
         df_partial = pd.DataFrame({
             'Date': [pd.Timestamp('2023-01-01')],
-            'Product A Valor': [1000.0]  # Only value column, no units or investment
+            'Product A Value': [1000.0]  # Only value column, no units or investment
         })
         mock_read_excel.return_value = df_partial
 
@@ -286,7 +287,6 @@ class TestParseFinancialProducts(unittest.TestCase):
 
         entry = product_data[0]
         self.assertIsNone(entry.units)
-        self.assertIsNone(entry.invested_value)
         self.assertEqual(Decimal('1000.0'), entry.current_value)
 
     @patch('brad.data.history.pd.read_excel')
@@ -324,7 +324,6 @@ class TestIngestFromExcel(unittest.TestCase):
                 ValueRow(
                     date=datetime(2023, 1, 1),
                     units=Decimal('100'),
-                    invested_value=Decimal('1000'),
                     current_value=Decimal('1200')
                 )
             ],
@@ -332,7 +331,6 @@ class TestIngestFromExcel(unittest.TestCase):
                 ValueRow(
                     date=datetime(2023, 1, 1),
                     units=Decimal('50'),
-                    invested_value=None,
                     current_value=Decimal('2000')
                 )
             ]
@@ -348,14 +346,12 @@ class TestIngestFromExcel(unittest.TestCase):
             'Product B Label': 'Product B Name'
         }
 
-    @patch('brad.data.history.backup_data')
     @patch('brad.data.history.get_financial_product_label_map')
     @patch('brad.data.history.get_account_label_map')
     @patch('brad.data.history.parse_financial_products')
     @patch('brad.data.history.parse_accounts')
     def test_ingest_from_excel_success(self, mock_parse_accounts, mock_parse_products,
-                                       mock_get_account_labels, mock_get_product_labels,
-                                       mock_backup_data):
+                                       mock_get_account_labels, mock_get_product_labels):
         """Test successful data ingestion from Excel."""
         # Setup mocks
         mock_parse_accounts.return_value = self.mock_accounts_data
@@ -364,7 +360,7 @@ class TestIngestFromExcel(unittest.TestCase):
         mock_get_product_labels.return_value = self.mock_product_labels
 
         # Call the function
-        ingest_from_excel(self.test_history_file, self.test_tabs)
+        result = ingest_from_excel(self.test_history_file, False, self.test_tabs)
 
         # Verify parse functions were called correctly
         mock_parse_accounts.assert_called_once_with(
@@ -380,21 +376,13 @@ class TestIngestFromExcel(unittest.TestCase):
         mock_get_account_labels.assert_called_once()
         mock_get_product_labels.assert_called_once()
 
-        # Verify backup_data was called with correct structure
-        mock_backup_data.assert_called_once()
-        call_args = mock_backup_data.call_args
-
-        self.assertEqual('history', call_args[0][0])
-        self.assertEqual('excel', call_args[1]['source'])
-        self.assertEqual('json', call_args[1]['fmt'])
-
-        # Check the data structure
-        data = call_args[1]['data']
-        self.assertIn('account_balance', data)
-        self.assertIn('product_value', data)
+        # Verify returned data structure
+        self.assertIsInstance(result, dict)
+        self.assertIn(ACCOUNT_BALANCE, result)
+        self.assertIn(FINANCIAL_PRODUCT_VALUE, result)
 
         # Check account balance data
-        account_balances = data['account_balance']
+        account_balances = result[ACCOUNT_BALANCE]
         self.assertEqual(3, len(account_balances))  # 2 + 1 from mock data
 
         # Check first account balance entry
@@ -404,26 +392,24 @@ class TestIngestFromExcel(unittest.TestCase):
         self.assertEqual('Account A Name', first_balance['account_name'])
 
         # Check product value data
-        product_values = data['product_value']
+        product_values = result[FINANCIAL_PRODUCT_VALUE]
         self.assertEqual(2, len(product_values))
 
         # Check first product value entry
         first_value = product_values[0]
         self.assertEqual(datetime(2023, 1, 1), first_value['date'])
         self.assertEqual(Decimal('100'), first_value['units'])
-        self.assertEqual(Decimal('1000'), first_value['invested_value'])
         self.assertEqual(Decimal('1200'), first_value['current_value'])
         self.assertEqual('Product A Name', first_value['financial_product_name'])
 
     @patch('brad.data.history.logger')
-    @patch('brad.data.history.backup_data')
     @patch('brad.data.history.get_financial_product_label_map')
     @patch('brad.data.history.get_account_label_map')
     @patch('brad.data.history.parse_financial_products')
     @patch('brad.data.history.parse_accounts')
     def test_ingest_from_excel_missing_account_labels(self, mock_parse_accounts, mock_parse_products,
                                                       mock_get_account_labels, mock_get_product_labels,
-                                                      mock_backup_data, mock_logger):
+                                                      mock_logger):
         """Test handling of missing account labels."""
         # Setup mocks with missing labels
         mock_accounts_with_missing = {
@@ -436,45 +422,40 @@ class TestIngestFromExcel(unittest.TestCase):
         mock_get_account_labels.return_value = {'Account A Label': 'Account A Name'}  # Missing second label
         mock_get_product_labels.return_value = {}
 
-        ingest_from_excel(self.test_history_file, self.test_tabs)
+        result = ingest_from_excel(self.test_history_file, False, self.test_tabs)
 
         # Should log warning for missing label
         mock_logger.warning.assert_called_with(
             "Account label not found in reference data: 'Missing Account Label'. Skipping account."
         )
 
-        # Verify backup_data was called
-        mock_backup_data.assert_called_once()
-        call_args = mock_backup_data.call_args
-        data = call_args[1]['data']
+        # Verify returned data structure
+        self.assertIsInstance(result, dict)
 
         # Should only have data for the account with valid label
-        account_balances = data['account_balance']
+        account_balances = result[ACCOUNT_BALANCE]
         self.assertEqual(1, len(account_balances))
         self.assertEqual('Account A Name', account_balances[0]['account_name'])
 
     @patch('brad.data.history.logger')
-    @patch('brad.data.history.backup_data')
     @patch('brad.data.history.get_financial_product_label_map')
     @patch('brad.data.history.get_account_label_map')
     @patch('brad.data.history.parse_financial_products')
     @patch('brad.data.history.parse_accounts')
     def test_ingest_from_excel_missing_product_labels(self, mock_parse_accounts, mock_parse_products,
                                                       mock_get_account_labels, mock_get_product_labels,
-                                                      mock_backup_data, mock_logger):
+                                                      mock_logger):
         """Test handling of missing product labels."""
         # Setup mocks with missing labels
         mock_products_with_missing = {
             'Product A Label': [ValueRow(
                 date=datetime(2023, 1, 1),
                 units=Decimal('100'),
-                invested_value=Decimal('1000'),
                 current_value=Decimal('1200')
             )],
             'Missing Product Label': [ValueRow(
                 date=datetime(2023, 1, 1),
                 units=Decimal('50'),
-                invested_value=None,
                 current_value=Decimal('2000')
             )]
         }
@@ -484,31 +465,27 @@ class TestIngestFromExcel(unittest.TestCase):
         mock_get_account_labels.return_value = {}
         mock_get_product_labels.return_value = {'Product A Label': 'Product A Name'}  # Missing second label
 
-        ingest_from_excel(self.test_history_file, self.test_tabs)
+        result = ingest_from_excel(self.test_history_file, False, self.test_tabs)
 
         # Should log warning for missing label
         mock_logger.warning.assert_called_with(
             "Product label not found in reference data: 'Missing Product Label'. Skipping product."
         )
 
-        # Verify backup_data was called
-        mock_backup_data.assert_called_once()
-        call_args = mock_backup_data.call_args
-        data = call_args[1]['data']
+        # Verify returned data structure
+        self.assertIsInstance(result, dict)
 
         # Should only have data for the product with valid label
-        product_values = data['product_value']
+        product_values = result[FINANCIAL_PRODUCT_VALUE]
         self.assertEqual(1, len(product_values))
         self.assertEqual('Product A Name', product_values[0]['financial_product_name'])
 
-    @patch('brad.data.history.backup_data')
     @patch('brad.data.history.get_financial_product_label_map')
     @patch('brad.data.history.get_account_label_map')
     @patch('brad.data.history.parse_financial_products')
     @patch('brad.data.history.parse_accounts')
     def test_ingest_from_excel_with_explicit_parameters(self, mock_parse_accounts, mock_parse_products,
-                                                        mock_get_account_labels, mock_get_product_labels,
-                                                        mock_backup_data):
+                                                        mock_get_account_labels, mock_get_product_labels):
         """Test ingest with explicit parameters."""
         mock_parse_accounts.return_value = {}
         mock_parse_products.return_value = {}
@@ -519,7 +496,7 @@ class TestIngestFromExcel(unittest.TestCase):
         test_tabs = {'accounts': ['explicit_accounts'], 'financial_products': ['explicit_products']}
 
         # Call with explicit parameters
-        ingest_from_excel(test_file, test_tabs)
+        result = ingest_from_excel(test_file, False, test_tabs)
 
         # Should use the provided values
         mock_parse_accounts.assert_called_once_with(
@@ -531,16 +508,61 @@ class TestIngestFromExcel(unittest.TestCase):
             test_tabs['financial_products']
         )
 
+    @patch('brad.data.history.get_financial_product_label_map')
+    @patch('brad.data.history.get_account_label_map')
+    @patch('brad.data.history.parse_financial_products')
+    @patch('brad.data.history.parse_accounts')
+    def test_ingest_from_excel_returns_data(self, mock_parse_accounts, mock_parse_products,
+                                          mock_get_account_labels, mock_get_product_labels):
+        """Test that ingest_from_excel returns the processed data."""
+        # Setup mocks
+        mock_parse_accounts.return_value = self.mock_accounts_data
+        mock_parse_products.return_value = self.mock_products_data
+        mock_get_account_labels.return_value = self.mock_account_labels
+        mock_get_product_labels.return_value = self.mock_product_labels
+        
+        # Call the function
+        result = ingest_from_excel(self.test_history_file, False, self.test_tabs)
+        
+        # Verify return value structure
+        self.assertIsInstance(result, dict)
+        self.assertIn(ACCOUNT_BALANCE, result)
+        self.assertIn(FINANCIAL_PRODUCT_VALUE, result)
+        
+        # Verify account balance data
+        account_balances = result[ACCOUNT_BALANCE]
+        self.assertEqual(3, len(account_balances))  # 2 + 1 from mock data
+        
+        # Verify product value data
+        product_values = result[FINANCIAL_PRODUCT_VALUE]
+        self.assertEqual(2, len(product_values))
+        
+        # Verify specific data structure
+        first_balance = account_balances[0]
+        self.assertIn('date', first_balance)
+        self.assertIn('balance', first_balance)
+        self.assertIn('account_name', first_balance)
+        
+        first_value = product_values[0]
+        self.assertIn('date', first_value)
+        self.assertIn('units', first_value)
+        self.assertIn('current_value', first_value)
+        self.assertIn('financial_product_name', first_value)
+
 
 class TestHistoryIntegration(unittest.TestCase):
     """Integration tests for the history module."""
 
-    @patch('brad.data.history.backup_data')
+    @patch('brad.data.history.FINANCIAL_PRODUCT_LABELS', {
+        'units': ['Units', 'U.P.'],
+        'investment': ['Invested Value'],
+        'value': ['Current Value', 'Value']
+    })
     @patch('brad.data.history.get_financial_product_label_map')
     @patch('brad.data.history.get_account_label_map')
     @patch('brad.data.history.pd.read_excel')
     def test_full_integration_workflow(self, mock_read_excel, mock_get_account_labels,
-                                       mock_get_product_labels, mock_backup_data):
+                                       mock_get_product_labels):
         """Test the complete workflow from Excel parsing to data backup."""
         # Setup realistic mock data
         accounts_df = pd.DataFrame({
@@ -551,11 +573,11 @@ class TestHistoryIntegration(unittest.TestCase):
 
         products_df = pd.DataFrame({
             'Date': [pd.Timestamp('2023-01-01'), pd.Timestamp('2023-02-01')],
-            'Stock Fund A Unidades': [100.0, 105.0],
-            'Stock Fund A Valor investido': [1000.0, 1000.0],
-            'Stock Fund A Valor actual': [1100.0, 1200.0],
+            'Stock Fund A Units': [100.0, 105.0],
+            'Stock Fund A Invested Value': [1000.0, 1000.0],
+            'Stock Fund A Current Value': [1100.0, 1200.0],
             'Bond Fund B U.P.': [200.0, 200.0],
-            'Bond Fund B Valor': [2000.0, 1950.0]
+            'Bond Fund B Value': [2000.0, 1950.0]
         })
 
         # Mock read_excel to return different DataFrames for different tabs
@@ -588,20 +610,18 @@ class TestHistoryIntegration(unittest.TestCase):
         }
 
         # Execute the integration
-        ingest_from_excel(history_file, tabs)
+        result = ingest_from_excel(history_file, False, tabs)
 
         # Verify the complete workflow
         self.assertEqual(2, mock_read_excel.call_count)
         mock_get_account_labels.assert_called_once()
         mock_get_product_labels.assert_called_once()
-        mock_backup_data.assert_called_once()
 
         # Verify the final data structure
-        call_args = mock_backup_data.call_args
-        data = call_args[1]['data']
+        self.assertIsInstance(result, dict)
 
         # Check account balances
-        account_balances = data['account_balance']
+        account_balances = result[ACCOUNT_BALANCE]
         self.assertEqual(4, len(account_balances))  # 2 accounts × 2 dates
 
         # Verify specific account balance entries
@@ -611,14 +631,13 @@ class TestHistoryIntegration(unittest.TestCase):
         self.assertEqual(Decimal('1600.0'), checking_entries[1]['balance'])
 
         # Check product values
-        product_values = data['product_value']
+        product_values = result[FINANCIAL_PRODUCT_VALUE]
         self.assertEqual(4, len(product_values))  # 2 products × 2 dates
 
         # Verify specific product value entries
         equity_entries = [entry for entry in product_values if entry['financial_product_name'] == 'Equity Growth Fund']
         self.assertEqual(2, len(equity_entries))
         self.assertEqual(Decimal('100.0'), equity_entries[0]['units'])
-        self.assertEqual(Decimal('1000.0'), equity_entries[0]['invested_value'])
         self.assertEqual(Decimal('1100.0'), equity_entries[0]['current_value'])
 
 
