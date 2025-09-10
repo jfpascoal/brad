@@ -14,7 +14,7 @@ from brad.data.backup import (
     backup_data,
     load_backup_file,
     restore_backup,
-    restore_reference_data
+    get_reference_data
 )
 from brad.sql.schema import ACCOUNT_BALANCES, PRODUCT_VALUES, ACCOUNTS, FINANCIAL_PRODUCTS
 
@@ -430,8 +430,8 @@ class TestBackupRoundTrip(unittest.TestCase):
         self.assertEqual(self.test_data, restored_data)
 
 
-class TestRestoreReferenceData(unittest.TestCase):
-    """Test cases for restore_reference_data function."""
+class TestGetReferenceData(unittest.TestCase):
+    """Test cases for get_reference_data function."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -455,15 +455,15 @@ class TestRestoreReferenceData(unittest.TestCase):
     @patch('brad.data.backup.remove_historical_attributes')
     @patch('brad.data.backup.write_to_db')
     @patch('brad.data.backup._restore_types')
-    def test_restore_reference_data_without_history(self, mock_restore_types, mock_write_to_db, 
-                                                  mock_remove_hist, mock_get_hist, mock_load_backup):
-        """Test restoring reference data without history transactions."""
+    def test_get_reference_data_without_history(self, mock_restore_types, mock_write_to_db, 
+                                              mock_remove_hist, mock_get_hist, mock_load_backup):
+        """Test getting reference data without history transactions."""
         mock_load_backup.return_value = self.test_reference_data
         mock_restore_types.return_value = self.test_reference_data["data"]
         mock_remove_hist.return_value = self.test_reference_data["data"]
         mock_db = MagicMock()
 
-        result = restore_reference_data(mock_db, with_history_transactions=False)
+        result = get_reference_data(with_history_transactions=False)
 
         mock_load_backup.assert_called_once()
         mock_restore_types.assert_called_once_with(
@@ -472,7 +472,6 @@ class TestRestoreReferenceData(unittest.TestCase):
         )
         mock_get_hist.assert_not_called()
         mock_remove_hist.assert_called_once_with(self.test_reference_data["data"])
-        mock_write_to_db.assert_called_once_with(db=mock_db, data=self.test_reference_data["data"])
         self.assertEqual(result, self.test_reference_data["data"])
 
     @patch('brad.data.backup.load_backup_file')
@@ -480,9 +479,9 @@ class TestRestoreReferenceData(unittest.TestCase):
     @patch('brad.data.backup.remove_historical_attributes')
     @patch('brad.data.backup.write_to_db')
     @patch('brad.data.backup._restore_types')
-    def test_restore_reference_data_with_history(self, mock_restore_types, mock_write_to_db, 
-                                               mock_remove_hist, mock_get_hist, mock_load_backup):
-        """Test restoring reference data with history transactions."""
+    def test_get_reference_data_with_history(self, mock_restore_types, mock_write_to_db, 
+                                           mock_remove_hist, mock_get_hist, mock_load_backup):
+        """Test getting reference data with history transactions."""
         mock_load_backup.return_value = self.test_reference_data.copy()
         
         # _restore_types returns the original data (no changes in this test)
@@ -498,7 +497,7 @@ class TestRestoreReferenceData(unittest.TestCase):
         
         mock_db = MagicMock()
 
-        result = restore_reference_data(mock_db, with_history_transactions=True)
+        result = get_reference_data(with_history_transactions=True)
 
         # Verify the mocks were called
         mock_load_backup.assert_called_once()
@@ -508,7 +507,6 @@ class TestRestoreReferenceData(unittest.TestCase):
         )
         mock_get_hist.assert_called_once()  # Called with some version of reference_data
         mock_remove_hist.assert_called_once()  # Called with some version of reference_data
-        mock_write_to_db.assert_called_once_with(db=mock_db, data=final_data)
         self.assertEqual(result, final_data)
 
 
