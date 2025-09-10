@@ -1,11 +1,10 @@
-from collections import defaultdict
-import os
 import json
+import os
+from collections import defaultdict
 from typing import List, Dict, Any
 
-from brad.data import BACKUP_DIR
+from brad import BACKUP_DIR
 from brad.sql.schema import ACCOUNTS, FINANCIAL_PRODUCTS, ACCOUNT_TRANSACTIONS, PRODUCT_TRANSACTIONS
-
 
 HISTORY_LBL = "_history_label"
 HISTORY_TXNS = "_history_transactions"

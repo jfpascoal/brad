@@ -317,7 +317,7 @@ class TestRestoreBackup(unittest.TestCase):
     @patch('brad.data.backup.load_backup_file')
     def test_restore_backup(self, mock_load, mock_restore):
         """Test restoring a backup file."""
-        
+
         file_name = "test_backup.json"
         mock_db = MagicMock()
         mock_load.return_value = json.loads(self.json_data)
@@ -455,8 +455,8 @@ class TestGetReferenceData(unittest.TestCase):
     @patch('brad.data.backup.remove_historical_attributes')
     @patch('brad.data.backup.write_to_db')
     @patch('brad.data.backup._restore_types')
-    def test_get_reference_data_without_history(self, mock_restore_types, mock_write_to_db, 
-                                              mock_remove_hist, mock_get_hist, mock_load_backup):
+    def test_get_reference_data_without_history(self, mock_restore_types, mock_write_to_db,
+                                                mock_remove_hist, mock_get_hist, mock_load_backup):
         """Test getting reference data without history transactions."""
         mock_load_backup.return_value = self.test_reference_data
         mock_restore_types.return_value = self.test_reference_data["data"]
@@ -467,7 +467,7 @@ class TestGetReferenceData(unittest.TestCase):
 
         mock_load_backup.assert_called_once()
         mock_restore_types.assert_called_once_with(
-            self.test_reference_data["data"], 
+            self.test_reference_data["data"],
             self.test_reference_data["_metadata"]["type_map"]
         )
         mock_get_hist.assert_not_called()
@@ -479,22 +479,22 @@ class TestGetReferenceData(unittest.TestCase):
     @patch('brad.data.backup.remove_historical_attributes')
     @patch('brad.data.backup.write_to_db')
     @patch('brad.data.backup._restore_types')
-    def test_get_reference_data_with_history(self, mock_restore_types, mock_write_to_db, 
-                                           mock_remove_hist, mock_get_hist, mock_load_backup):
+    def test_get_reference_data_with_history(self, mock_restore_types, mock_write_to_db,
+                                             mock_remove_hist, mock_get_hist, mock_load_backup):
         """Test getting reference data with history transactions."""
         mock_load_backup.return_value = self.test_reference_data.copy()
-        
+
         # _restore_types returns the original data (no changes in this test)
         restored_data = self.test_reference_data["data"].copy()
         mock_restore_types.return_value = restored_data
-        
+
         # get_history_transactions returns some history data
         mock_get_hist.return_value = {"history_transactions": [{"id": 1, "amount": 100}]}
-        
+
         # remove_historical_attributes returns some cleaned data
         final_data = {"cleaned": "data"}
         mock_remove_hist.return_value = final_data
-        
+
         mock_db = MagicMock()
 
         result = get_reference_data(with_history_transactions=True)
@@ -502,7 +502,7 @@ class TestGetReferenceData(unittest.TestCase):
         # Verify the mocks were called
         mock_load_backup.assert_called_once()
         mock_restore_types.assert_called_once_with(
-            self.test_reference_data["data"], 
+            self.test_reference_data["data"],
             self.test_reference_data["_metadata"]["type_map"]
         )
         mock_get_hist.assert_called_once()  # Called with some version of reference_data
@@ -519,7 +519,7 @@ class TestBackupErrorHandling(unittest.TestCase):
         """Test JSON backup handles permission errors."""
         with self.assertRaises(PermissionError):
             backup_data("test", {"data": "test"}, source="test", fmt="json")
-        
+
         mock_logger.error.assert_called()
 
     @patch('brad.data.backup.open', side_effect=OSError("Disk full"))
@@ -528,7 +528,7 @@ class TestBackupErrorHandling(unittest.TestCase):
         """Test binary backup handles OS errors."""
         with self.assertRaises(OSError):
             backup_data("test", {"data": "test"}, source="test", fmt="binary")
-        
+
         mock_logger.error.assert_called()
 
 

@@ -1,11 +1,11 @@
 import argparse
 import logging
 import sys
-from typing import List, Dict, Tuple, Any
 from datetime import datetime
+from typing import List, Dict, Tuple, Any
 
-from brad.data.history import ingest_from_excel
 from brad.data.backup import backup_data, write_to_db, get_reference_data
+from brad.data.history import ingest_from_excel
 from brad.sql.database import DatabaseManager
 from brad.sql.schema import create_schema
 
@@ -112,7 +112,7 @@ def load_history(args: List[str]) -> None:
     })
 
     options.set(args)
-    
+
     db = DatabaseManager()
     data = ingest_from_excel(history_file=options.history_file)
     if options.load_reference:

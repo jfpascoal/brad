@@ -8,9 +8,9 @@ from typing import Dict, List, Any
 from brad import BACKUP_DIR
 from brad.data.encryption import encrypt_string, decrypt_string
 from brad.data.reference import REFERENCE_PATH, get_history_transactions, remove_historical_attributes
+from brad.sql.database import DatabaseManager
 from brad.sql.objects import Row
 from brad.sql.schema import TABLES
-from brad.sql.database import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -250,7 +250,7 @@ def get_reference_data(with_history_transactions: bool) -> Dict[str, Dict[str, A
     reference = load_backup_file(REFERENCE_PATH)
     data = reference.get("data", {})
     type_map = reference.get("_metadata", {}).get("type_map", {})
-    
+
     reference_data = _restore_types(data, type_map)
     if with_history_transactions:
         logger.info("Getting historical transactions from reference data.")
