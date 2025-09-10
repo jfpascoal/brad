@@ -115,7 +115,7 @@ def load_history(args: List[str]) -> None:
     
     db = DatabaseManager()
     if options.load_reference:
-        restore_reference_data(db)
+        restore_reference_data(db=db, with_history_transactions=True)
     data = ingest_from_excel(history_file=options.history_file)
     write_to_db(db=db, data=data)
     backup_data(backup_file_name='history', data=data, source='excel', fmt='json')
