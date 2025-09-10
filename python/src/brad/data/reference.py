@@ -1,5 +1,4 @@
 from collections import defaultdict
-from email.policy import default
 import os
 import json
 from typing import List, Dict, Any
