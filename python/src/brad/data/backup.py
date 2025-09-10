@@ -239,27 +239,25 @@ def restore_backup(file_path: str, db: DatabaseManager) -> Dict[str, Any]:
         raise
 
 
-def restore_reference_data(db: DatabaseManager, with_history_transactions: bool) -> Dict[str, Any]:
+def get_reference_data(with_history_transactions: bool) -> Dict[str, Dict[str, Any]]:
     """
-    Restore reference data from backup file. Returns data as dictionary
+    Retrieve reference data from backup file. Returns data as dictionary
     
-    :param db: An instance of DatabaseManager to write restored data to the database.
     :param with_history_transactions: Whether to include historical transactions in the restored data.
-    :return: Restored reference data with original types
+    :return: Reference data with original types.
     """
-
+    logger.info(f"Loading reference data from file '{REFERENCE_PATH}'")
     reference = load_backup_file(REFERENCE_PATH)
     data = reference.get("data", {})
     type_map = reference.get("_metadata", {}).get("type_map", {})
     
     reference_data = _restore_types(data, type_map)
     if with_history_transactions:
+        logger.info("Getting historical transactions from reference data.")
         history_transactions = get_history_transactions(reference_data)
         reference_data.update(history_transactions)
 
     reference_data = remove_historical_attributes(reference_data)
-
-    write_to_db(db=db, data=reference_data)
     return reference_data
 
 
