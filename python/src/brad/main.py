@@ -5,7 +5,7 @@ from typing import List, Dict, Tuple, Any
 from datetime import datetime
 
 from brad.data.history import ingest_from_excel
-from brad.data.backup import backup_data, write_to_db, restore_reference_data
+from brad.data.backup import backup_data, write_to_db, get_reference_data
 from brad.sql.database import DatabaseManager
 from brad.sql.schema import create_schema
 
@@ -114,9 +114,10 @@ def load_history(args: List[str]) -> None:
     options.set(args)
     
     db = DatabaseManager()
-    if options.load_reference:
-        restore_reference_data(db=db, with_history_transactions=True)
     data = ingest_from_excel(history_file=options.history_file)
+    if options.load_reference:
+        reference_data = get_reference_data(with_history_transactions=True)
+        data.update(reference_data)
     write_to_db(db=db, data=data)
     backup_data(backup_file_name='history', data=data, source='excel', fmt='json')
 
