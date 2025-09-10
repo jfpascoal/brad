@@ -84,6 +84,7 @@ class TestValueRow(unittest.TestCase):
         self.assertEqual(expected, result)
 
 
+@patch('brad.data.history.pd.read_excel')
 class TestParseAccounts(unittest.TestCase):
     """Test cases for the parse_accounts function."""
 
@@ -106,7 +107,6 @@ class TestParseAccounts(unittest.TestCase):
             'Account E': [4000.0, 4200.0]
         })
 
-    @patch('brad.data.history.pd.read_excel')
     def test_parse_accounts_success(self, mock_read_excel):
         """Test successful parsing of account balances."""
         mock_read_excel.side_effect = [self.mock_df1, self.mock_df2]
@@ -146,7 +146,6 @@ class TestParseAccounts(unittest.TestCase):
         self.assertEqual(datetime(2023, 2, 1), account_c_data[0].date)
         self.assertEqual(Decimal('500.0'), account_c_data[0].balance)
 
-    @patch('brad.data.history.pd.read_excel')
     def test_parse_accounts_empty_tabs(self, mock_read_excel):
         """Test parsing with empty tabs list."""
         result = parse_accounts(self.test_file, [])
@@ -154,7 +153,6 @@ class TestParseAccounts(unittest.TestCase):
         mock_read_excel.assert_not_called()
         self.assertEqual({}, result)
 
-    @patch('brad.data.history.pd.read_excel')
     def test_parse_accounts_whitespace_in_account_names(self, mock_read_excel):
         """Test that account names with whitespace are stripped."""
         df_with_whitespace = pd.DataFrame({
@@ -171,7 +169,6 @@ class TestParseAccounts(unittest.TestCase):
         self.assertNotIn('  Account A  ', result)
         self.assertNotIn('\tAccount B\n', result)
 
-    @patch('brad.data.history.pd.read_excel')
     def test_parse_accounts_file_error(self, mock_read_excel):
         """Test handling of file reading errors."""
         mock_read_excel.side_effect = FileNotFoundError("File not found")
@@ -184,6 +181,9 @@ class TestParseAccounts(unittest.TestCase):
         'investment': ['Invested value'],
         'value': ['Current value', 'Value']
     })
+
+@patch('brad.data.history.logger')
+@patch('brad.data.history.pd.read_excel')
 class TestParseFinancialProducts(unittest.TestCase):
     """Test cases for the parse_financial_products function."""
 
@@ -208,9 +208,6 @@ class TestParseFinancialProducts(unittest.TestCase):
             'Product C Value': [3000.0, None]  # Second value is None, should be skipped
         })
 
-    
-    @patch('brad.data.history.logger')
-    @patch('brad.data.history.pd.read_excel')
     def test_parse_financial_products_success(self, mock_read_excel, mock_logger):
         """Test successful parsing of financial product values."""
         mock_read_excel.side_effect = [self.mock_df1, self.mock_df2]
@@ -249,8 +246,6 @@ class TestParseFinancialProducts(unittest.TestCase):
         self.assertEqual(1, len(product_c_data))
         self.assertEqual(datetime(2023, 1, 1), product_c_data[0].date)
 
-    @patch('brad.data.history.logger')
-    @patch('brad.data.history.pd.read_excel')
     def test_parse_financial_products_unrecognized_columns(self, mock_read_excel, mock_logger):
         """Test handling of unrecognized column patterns."""
         df_with_bad_columns = pd.DataFrame({
@@ -268,8 +263,6 @@ class TestParseFinancialProducts(unittest.TestCase):
         # Should return empty dict since no valid columns found
         self.assertEqual({}, result)
 
-    @patch('brad.data.history.logger')
-    @patch('brad.data.history.pd.read_excel')
     def test_parse_financial_products_partial_columns(self, mock_read_excel, mock_logger):
         """Test handling of products with only some column types."""
         df_partial = pd.DataFrame({
@@ -289,15 +282,17 @@ class TestParseFinancialProducts(unittest.TestCase):
         self.assertIsNone(entry.units)
         self.assertEqual(Decimal('1000.0'), entry.current_value)
 
-    @patch('brad.data.history.pd.read_excel')
-    def test_parse_financial_products_empty_tabs(self, mock_read_excel):
+    def test_parse_financial_products_empty_tabs(self, mock_read_excel, mock_logger):
         """Test parsing with empty tabs list."""
         result = parse_financial_products(self.test_file, [])
 
         mock_read_excel.assert_not_called()
         self.assertEqual({}, result)
 
-
+@patch('brad.data.history.get_financial_product_label_map')
+@patch('brad.data.history.get_account_label_map')
+@patch('brad.data.history.parse_financial_products')
+@patch('brad.data.history.parse_accounts')
 class TestIngestFromExcel(unittest.TestCase):
     """Test cases for the ingest_from_excel function."""
 
@@ -346,10 +341,6 @@ class TestIngestFromExcel(unittest.TestCase):
             'Product B Label': 'Product B Name'
         }
 
-    @patch('brad.data.history.get_financial_product_label_map')
-    @patch('brad.data.history.get_account_label_map')
-    @patch('brad.data.history.parse_financial_products')
-    @patch('brad.data.history.parse_accounts')
     def test_ingest_from_excel_success(self, mock_parse_accounts, mock_parse_products,
                                        mock_get_account_labels, mock_get_product_labels):
         """Test successful data ingestion from Excel."""
@@ -360,7 +351,7 @@ class TestIngestFromExcel(unittest.TestCase):
         mock_get_product_labels.return_value = self.mock_product_labels
 
         # Call the function
-        result = ingest_from_excel(self.test_history_file, False, self.test_tabs)
+        result = ingest_from_excel(self.test_history_file, self.test_tabs)
 
         # Verify parse functions were called correctly
         mock_parse_accounts.assert_called_once_with(
@@ -403,13 +394,8 @@ class TestIngestFromExcel(unittest.TestCase):
         self.assertEqual('Product A Name', first_value['financial_product_name'])
 
     @patch('brad.data.history.logger')
-    @patch('brad.data.history.get_financial_product_label_map')
-    @patch('brad.data.history.get_account_label_map')
-    @patch('brad.data.history.parse_financial_products')
-    @patch('brad.data.history.parse_accounts')
-    def test_ingest_from_excel_missing_account_labels(self, mock_parse_accounts, mock_parse_products,
-                                                      mock_get_account_labels, mock_get_product_labels,
-                                                      mock_logger):
+    def test_ingest_from_excel_missing_account_labels(self, mock_logger, mock_parse_accounts, mock_parse_products,
+                                                      mock_get_account_labels, mock_get_product_labels):
         """Test handling of missing account labels."""
         # Setup mocks with missing labels
         mock_accounts_with_missing = {
@@ -422,7 +408,7 @@ class TestIngestFromExcel(unittest.TestCase):
         mock_get_account_labels.return_value = {'Account A Label': 'Account A Name'}  # Missing second label
         mock_get_product_labels.return_value = {}
 
-        result = ingest_from_excel(self.test_history_file, False, self.test_tabs)
+        result = ingest_from_excel(self.test_history_file, self.test_tabs)
 
         # Should log warning for missing label
         mock_logger.warning.assert_called_with(
@@ -438,13 +424,8 @@ class TestIngestFromExcel(unittest.TestCase):
         self.assertEqual('Account A Name', account_balances[0]['account_name'])
 
     @patch('brad.data.history.logger')
-    @patch('brad.data.history.get_financial_product_label_map')
-    @patch('brad.data.history.get_account_label_map')
-    @patch('brad.data.history.parse_financial_products')
-    @patch('brad.data.history.parse_accounts')
-    def test_ingest_from_excel_missing_product_labels(self, mock_parse_accounts, mock_parse_products,
-                                                      mock_get_account_labels, mock_get_product_labels,
-                                                      mock_logger):
+    def test_ingest_from_excel_missing_product_labels(self, mock_logger, mock_parse_accounts, mock_parse_products,
+                                                      mock_get_account_labels, mock_get_product_labels):
         """Test handling of missing product labels."""
         # Setup mocks with missing labels
         mock_products_with_missing = {
@@ -465,7 +446,7 @@ class TestIngestFromExcel(unittest.TestCase):
         mock_get_account_labels.return_value = {}
         mock_get_product_labels.return_value = {'Product A Label': 'Product A Name'}  # Missing second label
 
-        result = ingest_from_excel(self.test_history_file, False, self.test_tabs)
+        result = ingest_from_excel(self.test_history_file, self.test_tabs)
 
         # Should log warning for missing label
         mock_logger.warning.assert_called_with(
@@ -480,10 +461,6 @@ class TestIngestFromExcel(unittest.TestCase):
         self.assertEqual(1, len(product_values))
         self.assertEqual('Product A Name', product_values[0]['financial_product_name'])
 
-    @patch('brad.data.history.get_financial_product_label_map')
-    @patch('brad.data.history.get_account_label_map')
-    @patch('brad.data.history.parse_financial_products')
-    @patch('brad.data.history.parse_accounts')
     def test_ingest_from_excel_with_explicit_parameters(self, mock_parse_accounts, mock_parse_products,
                                                         mock_get_account_labels, mock_get_product_labels):
         """Test ingest with explicit parameters."""
@@ -496,7 +473,7 @@ class TestIngestFromExcel(unittest.TestCase):
         test_tabs = {'accounts': ['explicit_accounts'], 'financial_products': ['explicit_products']}
 
         # Call with explicit parameters
-        result = ingest_from_excel(test_file, False, test_tabs)
+        result = ingest_from_excel(test_file, test_tabs)
 
         # Should use the provided values
         mock_parse_accounts.assert_called_once_with(
@@ -508,10 +485,6 @@ class TestIngestFromExcel(unittest.TestCase):
             test_tabs['financial_products']
         )
 
-    @patch('brad.data.history.get_financial_product_label_map')
-    @patch('brad.data.history.get_account_label_map')
-    @patch('brad.data.history.parse_financial_products')
-    @patch('brad.data.history.parse_accounts')
     def test_ingest_from_excel_returns_data(self, mock_parse_accounts, mock_parse_products,
                                           mock_get_account_labels, mock_get_product_labels):
         """Test that ingest_from_excel returns the processed data."""
@@ -522,7 +495,7 @@ class TestIngestFromExcel(unittest.TestCase):
         mock_get_product_labels.return_value = self.mock_product_labels
         
         # Call the function
-        result = ingest_from_excel(self.test_history_file, False, self.test_tabs)
+        result = ingest_from_excel(self.test_history_file, self.test_tabs)
         
         # Verify return value structure
         self.assertIsInstance(result, dict)
@@ -610,7 +583,7 @@ class TestHistoryIntegration(unittest.TestCase):
         }
 
         # Execute the integration
-        result = ingest_from_excel(history_file, False, tabs)
+        result = ingest_from_excel(history_file, tabs)
 
         # Verify the complete workflow
         self.assertEqual(2, mock_read_excel.call_count)

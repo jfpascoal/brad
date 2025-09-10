@@ -113,7 +113,7 @@ def parse_financial_products(history_file: str, tabs: List[str]) -> Dict[str, Li
     return dict(values)
 
 
-def ingest_from_excel(history_file: str, ingest_reference: bool, tabs: Dict[str, List[str]] = TABS) \
+def ingest_from_excel(history_file: str, tabs: Dict[str, List[str]] = TABS) \
         -> Dict[str, List[Dict[str, Any]]]:
     data = defaultdict(list)
     history_file = history_file or HISTORY_FILE
