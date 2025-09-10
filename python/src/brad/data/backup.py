@@ -7,7 +7,7 @@ from typing import Dict, List, Any
 
 from brad import BACKUP_DIR
 from brad.data.encryption import encrypt_string, decrypt_string
-from brad.data.reference import REFERENCE_PATH
+from brad.data.reference import REFERENCE_PATH, get_history_transactions, remove_historical_attributes
 from brad.sql.objects import Row
 from brad.sql.schema import TABLES
 from brad.sql.database import DatabaseManager
@@ -226,8 +226,8 @@ def restore_backup(file_path: str, db: DatabaseManager) -> Dict[str, Any]:
         backup_data = load_backup_file(file_path)
 
         # Restore types using metadata
-        data = backup_data["data"]
-        type_map = backup_data["_metadata"]["type_map"]
+        data = backup_data.get("data", {})
+        type_map = backup_data.get("_metadata", {}).get("type_map", {})
 
         restored_data = _restore_types(data, type_map)
         write_to_db(db=db, data=restored_data)
@@ -239,16 +239,29 @@ def restore_backup(file_path: str, db: DatabaseManager) -> Dict[str, Any]:
         raise
 
 
-def restore_reference_data(db: DatabaseManager) -> Dict[str, Any]:
+def restore_reference_data(db: DatabaseManager, with_history_transactions: bool) -> Dict[str, Any]:
     """
     Restore reference data from backup file. Returns data as dictionary
     
     :param db: An instance of DatabaseManager to write restored data to the database.
+    :param with_history_transactions: Whether to include historical transactions in the restored data.
     :return: Restored reference data with original types
     """
 
-    return restore_backup(REFERENCE_PATH, db)
+    reference = load_backup_file(REFERENCE_PATH)
+    data = reference.get("data", {})
+    type_map = reference.get("_metadata", {}).get("type_map", {})
     
+    reference_data = _restore_types(data, type_map)
+    if with_history_transactions:
+        history_transactions = get_history_transactions(reference_data)
+        reference_data.update(history_transactions)
+
+    reference_data = remove_historical_attributes(reference_data)
+
+    write_to_db(db=db, data=reference_data)
+    return reference_data
+
 
 def write_to_db(db: DatabaseManager, data: List[Dict[str, Any]]) -> None:
     """
