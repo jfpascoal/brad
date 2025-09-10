@@ -1,3 +1,4 @@
+from math import e
 import unittest
 import json
 from unittest.mock import patch
@@ -8,10 +9,11 @@ from brad.data.reference import (
     get_account_label_map,
     get_financial_product_label_map,
     get_history_transactions,
-    get_reference_data_without_history,
+    remove_historical_attributes,
     HISTORY_LBL,
     HISTORY_TXNS
 )
+from brad.sql.schema import ACCOUNTS, FINANCIAL_PRODUCTS, PRODUCT_TRANSACTIONS
 
 
 
@@ -21,11 +23,11 @@ class TestReference(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.mock_reference_data = {
-            "accounts": [
+            ACCOUNTS: [
                 {HISTORY_LBL: 'account1', 'name': 'Account One'},
                 {HISTORY_LBL: 'account2', 'name': 'Account Two'}
             ],
-            "financial_products": [
+            FINANCIAL_PRODUCTS: [
                 {HISTORY_LBL: 'product1', 'name': 'Product One'},
                 {HISTORY_LBL: 'product2', 'name': 'Product Two',
                  HISTORY_TXNS: [
@@ -92,7 +94,7 @@ class TestReference(unittest.TestCase):
     def test_get_history_transactions(self):
         """Test that get_history_transactions returns correct transactions."""
         expected = {
-            'product_transaction': [
+            PRODUCT_TRANSACTIONS: [
                 {
                     'financial_product_name': 'Product Two',
                     'date': '2025-01-01',
@@ -104,25 +106,26 @@ class TestReference(unittest.TestCase):
                 }
             ]
         }
-        with patch('brad.data.reference.get_data', return_value=self.mock_reference_data):
-            result = get_history_transactions()
+        result = get_history_transactions(self.mock_reference_data)
         self.assertEqual(expected, result)
         
-    def test_get_reference_data_without_history(self):
-        """Test that get_reference_data_without_history removes history fields."""
+    def test_remove_historical_attributes(self):
+        """Test that remove_historical_attributes removes history fields."""
+        input_data = self.mock_reference_data.copy()
         expected = {
-            "accounts": [
+            ACCOUNTS: [
                 {'name': 'Account One'},
                 {'name': 'Account Two'}
             ],
-            "financial_products": [
+            FINANCIAL_PRODUCTS: [
                 {'name': 'Product One'},
                 {'name': 'Product Two'}
             ]
         }
-        with patch('brad.data.reference.get_data', return_value=self.mock_reference_data):
-            result = get_reference_data_without_history()
-        self.assertEqual(expected, result)
+        self.assertNotEqual(expected, input_data)
+        
+        remove_historical_attributes(input_data)
+        self.assertEqual(expected, input_data)
 
 if __name__ == '__main__':
     unittest.main()
