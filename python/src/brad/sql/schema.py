@@ -22,7 +22,7 @@ STG = Schema('stg')
 # Table definitions
 # ============================================================================
 
-account_type_tbl = Table('account_type', db_schema=REF).set_columns(
+account_type_tbl = Table('account_types', db_schema=REF).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
     Column('name', TEXT, not_null=True),
     Column('name_pt', TEXT)
@@ -41,7 +41,7 @@ account_type_tbl = Table('account_type', db_schema=REF).set_columns(
     Row(id=7, name='Other', name_pt='Outros')
 )
 
-financial_product_type_tbl = Table('financial_product_type', db_schema=REF).set_columns(
+financial_product_type_tbl = Table('financial_product_types', db_schema=REF).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
     Column('name', TEXT, not_null=True),
     Column('name_pt', TEXT)
@@ -64,7 +64,7 @@ financial_product_type_tbl = Table('financial_product_type', db_schema=REF).set_
     Row(id=11, name='Cryptocurrency', name_pt='Criptomoeda')
 )
 
-transaction_type_tbl = Table('transaction_type', db_schema=REF).set_columns(
+transaction_type_tbl = Table('transaction_types', db_schema=REF).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
     Column('name', TEXT, not_null=True),
     Column('name_pt', TEXT)
@@ -83,31 +83,7 @@ transaction_type_tbl = Table('transaction_type', db_schema=REF).set_columns(
     Row(id=7, name='Bonus', name_pt='Bónus'),
 )
 
-provider_tbl = Table('provider', db_schema=REF).set_columns(
-    Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
-    Column('name', TEXT, not_null=True),
-    Column('country_iso_alpha2', TEXT, not_null=True)
-).set_constraint(
-    PrimaryKey(['id'], "pk_provider")
-).set_constraint(
-    Unique(['name'], "unq_provider_name")
-).set_seed(
-    Row(id=-1, name='Unknown', country_iso_alpha2='XX')
-)
-
-holder_tbl = Table('holder', db_schema=REF).set_columns(
-    Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
-    Column('name', TEXT, not_null=True),
-    Column('tax_bracket', TEXT)
-).set_constraint(
-    PrimaryKey(['id'], "pk_holder")
-).set_constraint(
-    Unique(['name'], "unq_holder_name")
-).set_seed(
-    Row(id=-1, name='Unknown')
-)
-
-exchange_rate_tbl = Table('exchange_rate', db_schema=REF).set_columns(
+exchange_rate_tbl = Table('exchange_rates', db_schema=REF).set_columns(
     Column('date', DATE, not_null=True),
     Column('base_currency', TEXT, not_null=True),
     Column('target_currency', TEXT, not_null=True),
@@ -116,7 +92,28 @@ exchange_rate_tbl = Table('exchange_rate', db_schema=REF).set_columns(
     PrimaryKey(['date', 'base_currency', 'target_currency'], "pk_exchange_rate")
 )
 
-account_tbl = Table('account', db_schema=STG).set_columns(
+
+provider_tbl = Table('providers', db_schema=STG).set_columns(
+    Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
+    Column('name', TEXT, not_null=True),
+    Column('country_iso_alpha2', TEXT, not_null=True)
+).set_constraint(
+    PrimaryKey(['id'], "pk_provider")
+).set_constraint(
+    Unique(['name'], "unq_provider_name")
+)
+
+holder_tbl = Table('holders', db_schema=STG).set_columns(
+    Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
+    Column('name', TEXT, not_null=True),
+    Column('tax_bracket', TEXT)
+).set_constraint(
+    PrimaryKey(['id'], "pk_holder")
+).set_constraint(
+    Unique(['name'], "unq_holder_name")
+)
+
+account_tbl = Table('accounts', db_schema=STG).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.ALWAYS),
     Column('name', TEXT, not_null=True),
     Column('account_type', TEXT, not_null=True),
@@ -138,7 +135,7 @@ account_tbl = Table('account', db_schema=STG).set_columns(
     Unique(['name'], "unq_account_name")
 )
 
-account_balance_tbl = Table('account_balance', db_schema=STG).set_columns(
+account_balance_tbl = Table('account_balances', db_schema=STG).set_columns(
     Column('date', DATE, not_null=True),
     Column('account_name', TEXT, not_null=True),
     Column('balance', NUMERIC_19_5, not_null=True)
@@ -146,7 +143,7 @@ account_balance_tbl = Table('account_balance', db_schema=STG).set_columns(
     PrimaryKey(['date', 'account_name'], "pk_account_balance")
 )
 
-account_transaction_tbl = Table('account_transaction', db_schema=STG).set_columns(
+account_transaction_tbl = Table('account_transactions', db_schema=STG).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.ALWAYS),
     Column('date', DATE, not_null=True),
     Column('account_name', TEXT, not_null=True),
@@ -157,7 +154,7 @@ account_transaction_tbl = Table('account_transaction', db_schema=STG).set_column
     PrimaryKey(['id'], "pk_account_transaction")
 )
 
-financial_product_tbl = Table('financial_product', db_schema=STG).set_columns(
+financial_product_tbl = Table('financial_products', db_schema=STG).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.ALWAYS),
     Column('name', TEXT, not_null=True),
     Column('financial_product_type', TEXT, not_null=True),
@@ -174,21 +171,17 @@ financial_product_tbl = Table('financial_product', db_schema=STG).set_columns(
     Unique(['name'], "unq_financial_product_name")
 )
 
-product_value_tbl = Table('product_value', db_schema=STG).set_columns(
+product_value_tbl = Table('product_values', db_schema=STG).set_columns(
     Column('date', DATE, not_null=True),
     Column('financial_product_name', TEXT, not_null=True),
     Column('current_value', NUMERIC_19_5, not_null=True),
     Column('units', NUMERIC_19_5),
     Column('unit_value', NUMERIC_19_5)
 ).set_constraint(
-    PrimaryKey(['date', 'financial_product_id'], "pk_product_value")
-).set_constraint(
-    ForeignKey(['financial_product_id'], 'financial_product',
-               ['id'], on_delete=FkActions.CASCADE,
-               name="fk_product_value_financial_product")
+    PrimaryKey(['date', 'financial_product_name'], "pk_product_value")
 )
 
-product_transaction_tbl = Table('product_transaction', db_schema=STG).set_columns(
+product_transaction_tbl = Table('product_transactions', db_schema=STG).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.ALWAYS),
     Column('date', DATE, not_null=True),
     Column('financial_product_name', TEXT, not_null=True),
