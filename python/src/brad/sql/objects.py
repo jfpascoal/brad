@@ -396,7 +396,7 @@ class Table:
                 logger.warning(f"Column '{column_name}' in table {self.qualified_name} is NOT NULL"
                                f" but was provided as None. Row will not be inserted: {row.get_dict()}")
                 return False
-            if not isinstance(value, col.sql_type.py()):
+            if value is not None and not isinstance(value, col.sql_type.py()):
                 logger.warning(
                     f"Column '{column_name}' in table {self.qualified_name} expects type {col.sql_type.py().__name__}"
                     f" but received {type(value).__name__}. Row will not be inserted: {row.get_dict()}")
