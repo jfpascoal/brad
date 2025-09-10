@@ -11,14 +11,9 @@ from brad.data.backup import backup_data
 from brad.data.reference import get_account_label_map, get_financial_product_label_map
 from brad.sql.database import DatabaseManager
 from brad.sql.objects import Row
-from brad.sql.schema import account_balance_tbl, product_value_tbl
+from brad.sql.schema import account_balance_tbl, product_value_tbl, ACCOUNT_BALANCES, PRODUCT_VALUES
 
 logger = getLogger(__name__)
-
-# Constants
-HISTORY = 'history'
-ACCOUNT_BALANCE = 'account_balance'
-FINANCIAL_PRODUCT_VALUE = 'product_value'
 
 BalanceRow = namedtuple('BalanceRow', ['date', 'balance'])
 ValueRow = namedtuple('ValueRow', ['date', 'units', 'current_value'])
@@ -133,7 +128,7 @@ def ingest_from_excel(history_file: str, tabs: Dict[str, List[str]] = TABS) \
 
         for balance in balances:
             balance_dict = balance._asdict() | {'account_name': account_name}
-            data[ACCOUNT_BALANCE].append(balance_dict)
+            data[ACCOUNT_BALANCES].append(balance_dict)
         logger.info(f"Processed {len(balances)} balances for account '{account_name}'.")
 
     # Process financial product values
@@ -149,7 +144,7 @@ def ingest_from_excel(history_file: str, tabs: Dict[str, List[str]] = TABS) \
 
         for value in values:
             value_dict = value._asdict() | {'financial_product_name': product_name}
-            data[FINANCIAL_PRODUCT_VALUE].append(value_dict)
+            data[PRODUCT_VALUES].append(value_dict)
         logger.info(f"Processed {len(values)} values for financial product '{product_name}'.")
 
     return dict(data)
