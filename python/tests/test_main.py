@@ -2,6 +2,7 @@ import re
 import unittest
 from unittest.mock import patch, MagicMock
 from brad.main import parse_args, initialize_db, load_history, MethodOptions
+from brad.sql.schema import ACCOUNT_BALANCES, PRODUCT_VALUES
 
 
 class TestParseArgs(unittest.TestCase):
@@ -196,7 +197,7 @@ class TestLoadHistory(unittest.TestCase):
         """Test load_history with file option."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
-        mock_data = {'balances': [], 'product_values': []}
+        mock_data = {ACCOUNT_BALANCES: [], PRODUCT_VALUES: []}
         mock_ingest.return_value = mock_data
 
         load_history(['--file', '/path/to/test.xlsx'])
@@ -210,7 +211,7 @@ class TestLoadHistory(unittest.TestCase):
         """Test load_history with load-reference option."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
-        mock_data = {'balances': [], 'product_values': []}
+        mock_data = {ACCOUNT_BALANCES: [], PRODUCT_VALUES: []}
         mock_ingest.return_value = mock_data
 
         load_history(['--load-reference'])
@@ -224,7 +225,7 @@ class TestLoadHistory(unittest.TestCase):
         """Test load_history with both file and load-reference options."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
-        mock_data = {'balances': [], 'product_values': []}
+        mock_data = {ACCOUNT_BALANCES: [], PRODUCT_VALUES: []}
         mock_ingest.return_value = mock_data
 
         load_history(['--file', '/path/to/test.xlsx', '--load-reference'])
@@ -239,7 +240,7 @@ class TestLoadHistory(unittest.TestCase):
         """Test load_history with unknown options logs warning."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
-        mock_data = {'balances': [], 'product_values': []}
+        mock_data = {ACCOUNT_BALANCES: [], PRODUCT_VALUES: []}
         mock_ingest.return_value = mock_data
 
         load_history(['--unknown-option'])
@@ -254,7 +255,7 @@ class TestLoadHistory(unittest.TestCase):
         """Test that options are correctly parsed and mapped to function parameters."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
-        mock_data = {'balances': [], 'product_values': []}
+        mock_data = {ACCOUNT_BALANCES: [], PRODUCT_VALUES: []}
         mock_ingest.return_value = mock_data
 
         # Test that attribute names are correctly mapped to parameter names
@@ -268,8 +269,8 @@ class TestLoadHistory(unittest.TestCase):
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
         expected_data = {
-            'balances': [{'account': 'test', 'amount': 100}],
-            'product_values': [{'product': 'fund', 'value': 500}]
+            ACCOUNT_BALANCES: [{'account': 'test', 'amount': 100}],
+            PRODUCT_VALUES: [{'product': 'fund', 'value': 500}]
         }
         mock_ingest.return_value = expected_data
 

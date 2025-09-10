@@ -13,8 +13,10 @@ from brad.data.backup import (
     _restore_types,
     backup_data,
     load_backup_file,
-    restore_backup
+    restore_backup,
+    restore_reference_data
 )
+from brad.sql.schema import ACCOUNT_BALANCES, PRODUCT_VALUES, ACCOUNTS, FINANCIAL_PRODUCTS
 
 
 class TestBackupHelperMethods(unittest.TestCase):
@@ -23,11 +25,11 @@ class TestBackupHelperMethods(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures before each test method."""
         self.test_data = {
-            "balances": [
+            ACCOUNT_BALANCES: [
                 {"account_name": "foobar", "date": datetime(2023, 1, 1), "amount": Decimal("1000.50")},
                 {"account_name": "foobar", "date": datetime(2023, 1, 2), "amount": Decimal("2500.75")}
             ],
-            "product_values": [
+            PRODUCT_VALUES: [
                 {"product_name": "baz", "date": datetime(2023, 1, 1), "units": Decimal("10.0"),
                  "investment": Decimal("1000.00"), "value": Decimal("1200.00")}
             ]
@@ -55,12 +57,12 @@ class TestBackupHelperMethods(unittest.TestCase):
         """Test type map creation for nested data structures."""
         type_map = _create_type_map(self.test_data)
         expected = {
-            'balances[].date': 'datetime',
-            'balances[].amount': 'Decimal',
-            'product_values[].date': 'datetime',
-            'product_values[].units': 'Decimal',
-            'product_values[].investment': 'Decimal',
-            'product_values[].value': 'Decimal'
+            f'{ACCOUNT_BALANCES}[].date': 'datetime',
+            f'{ACCOUNT_BALANCES}[].amount': 'Decimal',
+            f'{PRODUCT_VALUES}[].date': 'datetime',
+            f'{PRODUCT_VALUES}[].units': 'Decimal',
+            f'{PRODUCT_VALUES}[].investment': 'Decimal',
+            f'{PRODUCT_VALUES}[].value': 'Decimal'
         }
         self.assertEqual(expected, type_map)
 
@@ -334,11 +336,11 @@ class TestBackupRoundTrip(unittest.TestCase):
 
     def setUp(self):
         self.test_data = {
-            "balances": [
+            ACCOUNT_BALANCES: [
                 {"account_name": "foobar", "date": datetime(2023, 1, 1), "amount": Decimal("1000.50")},
                 {"account_name": "foobar", "date": datetime(2023, 1, 2), "amount": Decimal("2500.75")}
             ],
-            "product_values": [
+            PRODUCT_VALUES: [
                 {"product_name": "baz", "date": datetime(2023, 1, 1), "units": Decimal("10.0"),
                  "investment": Decimal("1000.00"), "value": Decimal("1200.00")}
             ]
@@ -397,12 +399,12 @@ class TestBackupRoundTrip(unittest.TestCase):
                 "source": source,
                 "file_name": self.test_file_name,
                 "type_map": {
-                    "balances[].date": "datetime",
-                    "balances[].amount": "Decimal",
-                    "product_values[].date": "datetime",
-                    "product_values[].units": "Decimal",
-                    "product_values[].investment": "Decimal",
-                    "product_values[].value": "Decimal"
+                    f"{ACCOUNT_BALANCES}[].date": "datetime",
+                    f"{ACCOUNT_BALANCES}[].amount": "Decimal",
+                    f"{PRODUCT_VALUES}[].date": "datetime",
+                    f"{PRODUCT_VALUES}[].units": "Decimal",
+                    f"{PRODUCT_VALUES}[].investment": "Decimal",
+                    f"{PRODUCT_VALUES}[].value": "Decimal"
                 }
             }
         }, ensure_ascii=False, default=str)
@@ -426,6 +428,110 @@ class TestBackupRoundTrip(unittest.TestCase):
         mock_encrypt.assert_called_once()
         mock_decrypt.assert_called_once_with(mock_encrypt.return_value)
         self.assertEqual(self.test_data, restored_data)
+
+
+class TestRestoreReferenceData(unittest.TestCase):
+    """Test cases for restore_reference_data function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.test_reference_data = {
+            "data": {
+                ACCOUNTS: [
+                    {"id": 1, "name": "Test Account", "account_type": "checking"}
+                ],
+                FINANCIAL_PRODUCTS: [
+                    {"id": 1, "name": "Test Product", "product_type": "investment"}
+                ]
+            },
+            "_metadata": {
+                "type_map": {},
+                "created_at": "2023-01-01T00:00:00"
+            }
+        }
+
+    @patch('brad.data.backup.load_backup_file')
+    @patch('brad.data.backup.get_history_transactions')
+    @patch('brad.data.backup.remove_historical_attributes')
+    @patch('brad.data.backup.write_to_db')
+    @patch('brad.data.backup._restore_types')
+    def test_restore_reference_data_without_history(self, mock_restore_types, mock_write_to_db, 
+                                                  mock_remove_hist, mock_get_hist, mock_load_backup):
+        """Test restoring reference data without history transactions."""
+        mock_load_backup.return_value = self.test_reference_data
+        mock_restore_types.return_value = self.test_reference_data["data"]
+        mock_remove_hist.return_value = self.test_reference_data["data"]
+        mock_db = MagicMock()
+
+        result = restore_reference_data(mock_db, with_history_transactions=False)
+
+        mock_load_backup.assert_called_once()
+        mock_restore_types.assert_called_once_with(
+            self.test_reference_data["data"], 
+            self.test_reference_data["_metadata"]["type_map"]
+        )
+        mock_get_hist.assert_not_called()
+        mock_remove_hist.assert_called_once_with(self.test_reference_data["data"])
+        mock_write_to_db.assert_called_once_with(db=mock_db, data=self.test_reference_data["data"])
+        self.assertEqual(result, self.test_reference_data["data"])
+
+    @patch('brad.data.backup.load_backup_file')
+    @patch('brad.data.backup.get_history_transactions')
+    @patch('brad.data.backup.remove_historical_attributes')
+    @patch('brad.data.backup.write_to_db')
+    @patch('brad.data.backup._restore_types')
+    def test_restore_reference_data_with_history(self, mock_restore_types, mock_write_to_db, 
+                                               mock_remove_hist, mock_get_hist, mock_load_backup):
+        """Test restoring reference data with history transactions."""
+        mock_load_backup.return_value = self.test_reference_data.copy()
+        
+        # _restore_types returns the original data (no changes in this test)
+        restored_data = self.test_reference_data["data"].copy()
+        mock_restore_types.return_value = restored_data
+        
+        # get_history_transactions returns some history data
+        mock_get_hist.return_value = {"history_transactions": [{"id": 1, "amount": 100}]}
+        
+        # remove_historical_attributes returns some cleaned data
+        final_data = {"cleaned": "data"}
+        mock_remove_hist.return_value = final_data
+        
+        mock_db = MagicMock()
+
+        result = restore_reference_data(mock_db, with_history_transactions=True)
+
+        # Verify the mocks were called
+        mock_load_backup.assert_called_once()
+        mock_restore_types.assert_called_once_with(
+            self.test_reference_data["data"], 
+            self.test_reference_data["_metadata"]["type_map"]
+        )
+        mock_get_hist.assert_called_once()  # Called with some version of reference_data
+        mock_remove_hist.assert_called_once()  # Called with some version of reference_data
+        mock_write_to_db.assert_called_once_with(db=mock_db, data=final_data)
+        self.assertEqual(result, final_data)
+
+
+class TestBackupErrorHandling(unittest.TestCase):
+    """Test error handling in backup operations."""
+
+    @patch('brad.data.backup.open', side_effect=PermissionError("Access denied"))
+    @patch('brad.data.backup.logger')
+    def test_backup_data_json_permission_error(self, mock_logger, mock_open):
+        """Test JSON backup handles permission errors."""
+        with self.assertRaises(PermissionError):
+            backup_data("test", {"data": "test"}, source="test", fmt="json")
+        
+        mock_logger.error.assert_called()
+
+    @patch('brad.data.backup.open', side_effect=OSError("Disk full"))
+    @patch('brad.data.backup.logger')
+    def test_backup_data_binary_os_error(self, mock_logger, mock_open):
+        """Test binary backup handles OS errors."""
+        with self.assertRaises(OSError):
+            backup_data("test", {"data": "test"}, source="test", fmt="binary")
+        
+        mock_logger.error.assert_called()
 
 
 if __name__ == '__main__':

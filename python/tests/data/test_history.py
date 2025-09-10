@@ -10,11 +10,9 @@ from brad.data.history import (
     parse_financial_products,
     ingest_from_excel,
     BalanceRow,
-    ValueRow,
-    HISTORY,
-    ACCOUNT_BALANCE,
-    FINANCIAL_PRODUCT_VALUE
+    ValueRow
 )
+from brad.sql.schema import ACCOUNT_BALANCES, PRODUCT_VALUES
 
 
 class TestBalanceRow(unittest.TestCase):
@@ -369,11 +367,11 @@ class TestIngestFromExcel(unittest.TestCase):
 
         # Verify returned data structure
         self.assertIsInstance(result, dict)
-        self.assertIn(ACCOUNT_BALANCE, result)
-        self.assertIn(FINANCIAL_PRODUCT_VALUE, result)
+        self.assertIn(ACCOUNT_BALANCES, result)
+        self.assertIn(PRODUCT_VALUES, result)
 
         # Check account balance data
-        account_balances = result[ACCOUNT_BALANCE]
+        account_balances = result[ACCOUNT_BALANCES]
         self.assertEqual(3, len(account_balances))  # 2 + 1 from mock data
 
         # Check first account balance entry
@@ -383,7 +381,7 @@ class TestIngestFromExcel(unittest.TestCase):
         self.assertEqual('Account A Name', first_balance['account_name'])
 
         # Check product value data
-        product_values = result[FINANCIAL_PRODUCT_VALUE]
+        product_values = result[PRODUCT_VALUES]
         self.assertEqual(2, len(product_values))
 
         # Check first product value entry
@@ -419,7 +417,7 @@ class TestIngestFromExcel(unittest.TestCase):
         self.assertIsInstance(result, dict)
 
         # Should only have data for the account with valid label
-        account_balances = result[ACCOUNT_BALANCE]
+        account_balances = result[ACCOUNT_BALANCES]
         self.assertEqual(1, len(account_balances))
         self.assertEqual('Account A Name', account_balances[0]['account_name'])
 
@@ -457,7 +455,7 @@ class TestIngestFromExcel(unittest.TestCase):
         self.assertIsInstance(result, dict)
 
         # Should only have data for the product with valid label
-        product_values = result[FINANCIAL_PRODUCT_VALUE]
+        product_values = result[PRODUCT_VALUES]
         self.assertEqual(1, len(product_values))
         self.assertEqual('Product A Name', product_values[0]['financial_product_name'])
 
@@ -499,15 +497,15 @@ class TestIngestFromExcel(unittest.TestCase):
         
         # Verify return value structure
         self.assertIsInstance(result, dict)
-        self.assertIn(ACCOUNT_BALANCE, result)
-        self.assertIn(FINANCIAL_PRODUCT_VALUE, result)
+        self.assertIn(ACCOUNT_BALANCES, result)
+        self.assertIn(PRODUCT_VALUES, result)
         
         # Verify account balance data
-        account_balances = result[ACCOUNT_BALANCE]
+        account_balances = result[ACCOUNT_BALANCES]
         self.assertEqual(3, len(account_balances))  # 2 + 1 from mock data
         
         # Verify product value data
-        product_values = result[FINANCIAL_PRODUCT_VALUE]
+        product_values = result[PRODUCT_VALUES]
         self.assertEqual(2, len(product_values))
         
         # Verify specific data structure
@@ -594,7 +592,7 @@ class TestHistoryIntegration(unittest.TestCase):
         self.assertIsInstance(result, dict)
 
         # Check account balances
-        account_balances = result[ACCOUNT_BALANCE]
+        account_balances = result[ACCOUNT_BALANCES]
         self.assertEqual(4, len(account_balances))  # 2 accounts × 2 dates
 
         # Verify specific account balance entries
@@ -604,7 +602,7 @@ class TestHistoryIntegration(unittest.TestCase):
         self.assertEqual(Decimal('1600.0'), checking_entries[1]['balance'])
 
         # Check product values
-        product_values = result[FINANCIAL_PRODUCT_VALUE]
+        product_values = result[PRODUCT_VALUES]
         self.assertEqual(4, len(product_values))  # 2 products × 2 dates
 
         # Verify specific product value entries
