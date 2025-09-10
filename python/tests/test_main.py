@@ -188,7 +188,7 @@ class TestLoadHistory(unittest.TestCase):
         load_history([])
 
         mock_db_manager.assert_called_once()
-        mock_ingest.assert_called_once_with(history_file='', ingest_reference=False)
+        mock_ingest.assert_called_once_with(history_file='')
         mock_write.assert_called_once_with(db=mock_db_instance, data=mock_data)
         mock_backup.assert_called_once_with(backup_file_name='history', data=mock_data, source='excel', fmt='json')
 
@@ -202,7 +202,7 @@ class TestLoadHistory(unittest.TestCase):
         load_history(['--file', '/path/to/test.xlsx'])
 
         mock_db_manager.assert_called_once()
-        mock_ingest.assert_called_once_with(history_file='/path/to/test.xlsx', ingest_reference=False)
+        mock_ingest.assert_called_once_with(history_file='/path/to/test.xlsx')
         mock_write.assert_called_once_with(db=mock_db_instance, data=mock_data)
         mock_backup.assert_called_once_with(backup_file_name='history', data=mock_data, source='excel', fmt='json')
 
@@ -216,7 +216,7 @@ class TestLoadHistory(unittest.TestCase):
         load_history(['--load-reference'])
 
         mock_db_manager.assert_called_once()
-        mock_ingest.assert_called_once_with(history_file='', ingest_reference=True)
+        mock_ingest.assert_called_once_with(history_file='')
         mock_write.assert_called_once_with(db=mock_db_instance, data=mock_data)
         mock_backup.assert_called_once_with(backup_file_name='history', data=mock_data, source='excel', fmt='json')
 
@@ -230,7 +230,7 @@ class TestLoadHistory(unittest.TestCase):
         load_history(['--file', '/path/to/test.xlsx', '--load-reference'])
 
         mock_db_manager.assert_called_once()
-        mock_ingest.assert_called_once_with(history_file='/path/to/test.xlsx', ingest_reference=True)
+        mock_ingest.assert_called_once_with(history_file='/path/to/test.xlsx')
         mock_write.assert_called_once_with(db=mock_db_instance, data=mock_data)
         mock_backup.assert_called_once_with(backup_file_name='history', data=mock_data, source='excel', fmt='json')
 
@@ -246,7 +246,7 @@ class TestLoadHistory(unittest.TestCase):
 
         mock_logger.warning.assert_called_with("Unknown option '--unknown-option'.")
         mock_db_manager.assert_called_once()
-        mock_ingest.assert_called_once_with(history_file='', ingest_reference=False)
+        mock_ingest.assert_called_once_with(history_file='')
         mock_write.assert_called_once_with(db=mock_db_instance, data=mock_data)
         mock_backup.assert_called_once_with(backup_file_name='history', data=mock_data, source='excel', fmt='json')
 
@@ -261,7 +261,7 @@ class TestLoadHistory(unittest.TestCase):
         load_history(['--file', 'test.xlsx', '--load-reference'])
 
         # Verify that 'load_reference' attribute is mapped to 'ingest_reference' parameter
-        mock_ingest.assert_called_once_with(history_file='test.xlsx', ingest_reference=True)
+        mock_ingest.assert_called_once_with(history_file='test.xlsx')
 
     def test_load_history_data_flow(self, mock_db_manager, mock_ingest, mock_write, mock_backup):
         """Test that data flows correctly between functions."""
@@ -298,7 +298,7 @@ class TestLoadHistory(unittest.TestCase):
         # Verify the order of function calls
         expected_calls = [
             ('db_manager', (), {}),
-            ('ingest', (), {'history_file': '', 'ingest_reference': False}),
+            ('ingest', (), {'history_file': ''}),
             ('write', (), {'db': mock_db_instance, 'data': mock_data}),
             ('backup', (), {'backup_file_name': 'history', 'data': mock_data, 'source': 'excel', 'fmt': 'json'})
         ]
