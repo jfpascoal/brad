@@ -9,11 +9,12 @@ from brad.data import BACKUP_DIR
 
 HISTORY_LBL = "_history_label"
 HISTORY_TXNS = "_history_transactions"
+REFERENCE_PATH = os.path.join(BACKUP_DIR, "reference.json")
 
 
 def get_data() -> Dict[str, Any]:
     """Get the reference data."""
-    with open(os.path.join(BACKUP_DIR, "reference.json"), 'rb') as f:
+    with open(REFERENCE_PATH, 'rb') as f:
         return json.load(f).get("data", {})
 
 

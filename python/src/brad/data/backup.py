@@ -7,6 +7,7 @@ from typing import Dict, List, Any
 
 from brad import BACKUP_DIR
 from brad.data.encryption import encrypt_string, decrypt_string
+from brad.data.reference import REFERENCE_PATH
 from brad.sql.objects import Row
 from brad.sql.schema import TABLES
 from brad.sql.database import DatabaseManager
@@ -100,9 +101,9 @@ def _restore_types(data: Any, type_map: Dict[str, str], path: str = "") -> Any:
     if path in type_map:
         target_type = type_map[path]
         if target_type == "Decimal":
-            return Decimal(str(data))
+            return Decimal(str(data)) if data is not None else None
         elif target_type == "datetime":
-            return datetime.fromisoformat(data)
+            return datetime.fromisoformat(data) if data else None
 
     # Recursively process dictionaries and lists
     if isinstance(data, dict):
@@ -215,6 +216,7 @@ def restore_backup(file_path: str, db: DatabaseManager) -> Dict[str, Any]:
     Restore data from backup file.
     
     :param file_path: Path to back up file (.json or .b)
+    :param db: An instance of DatabaseManager to write restored data to the database.
     :return: Restored data with original types
     :raises ValueError: If file format is unsupported or restoration fails
     :raises FileNotFoundError: If the backup file is not found
@@ -235,6 +237,17 @@ def restore_backup(file_path: str, db: DatabaseManager) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error restoring from backup file: {e}")
         raise
+
+
+def restore_reference_data(db: DatabaseManager) -> Dict[str, Any]:
+    """
+    Restore reference data from backup file. Returns data as dictionary
+    
+    :param db: An instance of DatabaseManager to write restored data to the database.
+    :return: Restored reference data with original types
+    """
+
+    return restore_backup(REFERENCE_PATH, db)
     
 
 def write_to_db(db: DatabaseManager, data: List[Dict[str, Any]]) -> None:
