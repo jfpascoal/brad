@@ -1,6 +1,6 @@
-import re
 import unittest
 from unittest.mock import patch, MagicMock
+
 from brad.main import parse_args, initialize_db, load_history, MethodOptions
 from brad.sql.schema import ACCOUNT_BALANCES, PRODUCT_VALUES, ACCOUNTS, FINANCIAL_PRODUCTS
 
@@ -14,7 +14,7 @@ class TestParseArgs(unittest.TestCase):
     def test_parse_args_basic(self):
         """Test parsing basic command line arguments."""
         args = parse_args()
-        
+
         self.assertEqual('db_init', args.method)
         self.assertEqual([], args.options)
 
@@ -22,7 +22,7 @@ class TestParseArgs(unittest.TestCase):
     def test_parse_args_with_options(self):
         """Test parsing command line arguments with options."""
         args = parse_args()
-        
+
         self.assertEqual('db_init', args.method)
         self.assertEqual(['-f', '--no-seed'], args.options)
 
@@ -63,7 +63,7 @@ class TestMethodOptions(unittest.TestCase):
     def test_set_boolean_flags(self):
         """Test setting boolean flag options."""
         self.options.set(['-f', '--no-seed'])
-        
+
         self.assertTrue(self.options.force)
         self.assertTrue(self.options.no_seed)
         self.assertEqual(0, self.options.count)  # Should remain default
@@ -78,7 +78,7 @@ class TestMethodOptions(unittest.TestCase):
     def test_set_value_option(self):
         """Test setting value-based options."""
         self.options.set(['-c', '42'])
-        
+
         self.assertEqual(42, self.options.count)
         self.assertFalse(self.options.force)  # Should remain default
 
@@ -92,10 +92,11 @@ class TestMethodOptions(unittest.TestCase):
     def test_set_mixed_options(self):
         """Test setting mixed boolean and value options."""
         self.options.set(['-f', '-c', '10', '--no-seed'])
-        
+
         self.assertTrue(self.options.force)
         self.assertTrue(self.options.no_seed)
         self.assertEqual(10, self.options.count)
+
 
 @patch('brad.main.create_schema')
 @patch('brad.main.DatabaseManager')
@@ -110,7 +111,7 @@ class TestInitializeDb(unittest.TestCase):
         mock_db_manager.return_value = mock_db_instance
 
         result = initialize_db([])
-        
+
         mock_db_manager.assert_called_once()
         mock_create_schema.assert_called_once_with(mock_db_instance, force=False, seed=True)
         self.assertEqual(mock_db_instance, result)
@@ -119,9 +120,9 @@ class TestInitializeDb(unittest.TestCase):
         """Test force flag handling."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
-        
+
         result = initialize_db(['-f'])
-        
+
         mock_db_manager.assert_called_once()
         mock_create_schema.assert_called_once_with(mock_db_instance, force=True, seed=True)
         self.assertEqual(mock_db_instance, result)
@@ -130,9 +131,9 @@ class TestInitializeDb(unittest.TestCase):
         """Test --force flag handling."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
-        
+
         result = initialize_db(['--force'])
-        
+
         mock_db_manager.assert_called_once()
         mock_create_schema.assert_called_once_with(mock_db_instance, force=True, seed=True)
         self.assertEqual(mock_db_instance, result)
@@ -141,9 +142,9 @@ class TestInitializeDb(unittest.TestCase):
         """Test --no-seed flag disables seeding."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
-        
+
         result = initialize_db(['--no-seed'])
-        
+
         mock_db_manager.assert_called_once()
         mock_create_schema.assert_called_once_with(mock_db_instance, force=False, seed=False)
         self.assertEqual(mock_db_instance, result)
@@ -152,9 +153,9 @@ class TestInitializeDb(unittest.TestCase):
         """Test both force and no-seed flags together."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
-        
+
         result = initialize_db(['-f', '--no-seed'])
-        
+
         mock_db_manager.assert_called_once()
         mock_create_schema.assert_called_once_with(mock_db_instance, force=True, seed=False)
         self.assertEqual(mock_db_instance, result)
@@ -163,12 +164,13 @@ class TestInitializeDb(unittest.TestCase):
         """Test warning is printed for unknown options."""
         mock_db_instance = MagicMock()
         mock_db_manager.return_value = mock_db_instance
-        
+
         result = initialize_db(['--unknown-option'])
-        
+
         mock_db_manager.assert_called_once()
         mock_create_schema.assert_called_once_with(mock_db_instance, force=False, seed=True)
         self.assertEqual(mock_db_instance, result)
+
 
 @patch('brad.main.get_reference_data')
 @patch('brad.main.backup_data')
@@ -184,7 +186,7 @@ class TestLoadHistory(unittest.TestCase):
         """Set up test fixtures."""
         # Mock database instance
         self.mock_db_instance = MagicMock()
-        
+
         # Mock data fixtures
         self.simple_mock_data = {'test': 'data'}
         self.empty_schema_data = {ACCOUNT_BALANCES: [], PRODUCT_VALUES: []}
@@ -207,7 +209,8 @@ class TestLoadHistory(unittest.TestCase):
         mock_ingest.assert_called_once_with(history_file='')
         mock_get_ref.assert_not_called()  # Should not be called when no --load-reference
         mock_write.assert_called_once_with(db=self.mock_db_instance, data=self.simple_mock_data)
-        mock_backup.assert_called_once_with(backup_file_name='history', data=self.simple_mock_data, source='excel', fmt='json')
+        mock_backup.assert_called_once_with(backup_file_name='history', data=self.simple_mock_data, source='excel',
+                                            fmt='json')
 
     def test_load_history_with_file_option(self, mock_db_manager, mock_ingest, mock_write, mock_backup, mock_get_ref):
         """Test load_history with file option."""
@@ -220,9 +223,11 @@ class TestLoadHistory(unittest.TestCase):
         mock_ingest.assert_called_once_with(history_file='/path/to/test.xlsx')
         mock_get_ref.assert_not_called()  # Should not be called when no --load-reference
         mock_write.assert_called_once_with(db=self.mock_db_instance, data=self.empty_schema_data)
-        mock_backup.assert_called_once_with(backup_file_name='history', data=self.empty_schema_data, source='excel', fmt='json')
+        mock_backup.assert_called_once_with(backup_file_name='history', data=self.empty_schema_data, source='excel',
+                                            fmt='json')
 
-    def test_load_history_with_reference_option(self, mock_db_manager, mock_ingest, mock_write, mock_backup, mock_get_ref):
+    def test_load_history_with_reference_option(self, mock_db_manager, mock_ingest, mock_write, mock_backup,
+                                                mock_get_ref):
         """Test load_history with load-reference option."""
         mock_db_manager.return_value = self.mock_db_instance
         mock_ingest.return_value = self.history_data_with_content
@@ -233,12 +238,13 @@ class TestLoadHistory(unittest.TestCase):
         mock_db_manager.assert_called_once()
         mock_ingest.assert_called_once_with(history_file='')
         mock_get_ref.assert_called_once_with(with_history_transactions=True)
-        
+
         # Check that data was merged - history data should be updated with reference data
         expected_merged_data = self.history_data_with_content.copy()
         expected_merged_data.update(self.reference_data_with_content)
         mock_write.assert_called_once_with(db=self.mock_db_instance, data=expected_merged_data)
-        mock_backup.assert_called_once_with(backup_file_name='history', data=expected_merged_data, source='excel', fmt='json')
+        mock_backup.assert_called_once_with(backup_file_name='history', data=expected_merged_data, source='excel',
+                                            fmt='json')
 
     def test_load_history_with_both_options(self, mock_db_manager, mock_ingest, mock_write, mock_backup, mock_get_ref):
         """Test load_history with both file and load-reference options."""
@@ -251,15 +257,17 @@ class TestLoadHistory(unittest.TestCase):
         mock_db_manager.assert_called_once()
         mock_ingest.assert_called_once_with(history_file='/path/to/test.xlsx')
         mock_get_ref.assert_called_once_with(with_history_transactions=True)
-        
+
         # Check that data was merged
         expected_merged_data = self.history_data_with_content.copy()
         expected_merged_data.update(self.reference_data_with_content)
         mock_write.assert_called_once_with(db=self.mock_db_instance, data=expected_merged_data)
-        mock_backup.assert_called_once_with(backup_file_name='history', data=expected_merged_data, source='excel', fmt='json')
+        mock_backup.assert_called_once_with(backup_file_name='history', data=expected_merged_data, source='excel',
+                                            fmt='json')
 
     @patch('brad.main.logger')
-    def test_load_history_with_unknown_option(self, mock_logger, mock_db_manager, mock_ingest, mock_write, mock_backup, mock_get_ref):
+    def test_load_history_with_unknown_option(self, mock_logger, mock_db_manager, mock_ingest, mock_write, mock_backup,
+                                              mock_get_ref):
         """Test load_history with unknown options logs warning."""
         mock_db_manager.return_value = self.mock_db_instance
         mock_ingest.return_value = self.empty_schema_data
@@ -271,7 +279,8 @@ class TestLoadHistory(unittest.TestCase):
         mock_ingest.assert_called_once_with(history_file='')
         mock_get_ref.assert_not_called()  # Should not be called when no --load-reference
         mock_write.assert_called_once_with(db=self.mock_db_instance, data=self.empty_schema_data)
-        mock_backup.assert_called_once_with(backup_file_name='history', data=self.empty_schema_data, source='excel', fmt='json')
+        mock_backup.assert_called_once_with(backup_file_name='history', data=self.empty_schema_data, source='excel',
+                                            fmt='json')
 
     def test_load_history_option_parsing(self, mock_db_manager, mock_ingest, mock_write, mock_backup, mock_get_ref):
         """Test that options are correctly parsed and mapped to function parameters."""
@@ -296,9 +305,11 @@ class TestLoadHistory(unittest.TestCase):
 
         # Verify that the same data returned by ingest_from_excel is passed to both write_to_db and backup_data
         mock_write.assert_called_once_with(db=self.mock_db_instance, data=self.test_data_flow_data)
-        mock_backup.assert_called_once_with(backup_file_name='history', data=self.test_data_flow_data, source='excel', fmt='json')
+        mock_backup.assert_called_once_with(backup_file_name='history', data=self.test_data_flow_data, source='excel',
+                                            fmt='json')
 
-    def test_load_history_function_execution_order(self, mock_db_manager, mock_ingest, mock_write, mock_backup, mock_get_ref):
+    def test_load_history_function_execution_order(self, mock_db_manager, mock_ingest, mock_write, mock_backup,
+                                                   mock_get_ref):
         """Test that functions are called in the correct order."""
         mock_db_manager.return_value = self.mock_db_instance
         mock_ingest.return_value = self.simple_mock_data
@@ -318,9 +329,10 @@ class TestLoadHistory(unittest.TestCase):
             ('db_manager', (), {}),
             ('ingest', (), {'history_file': ''}),
             ('write', (), {'db': self.mock_db_instance, 'data': self.simple_mock_data}),
-            ('backup', (), {'backup_file_name': 'history', 'data': self.simple_mock_data, 'source': 'excel', 'fmt': 'json'})
+            ('backup', (),
+             {'backup_file_name': 'history', 'data': self.simple_mock_data, 'source': 'excel', 'fmt': 'json'})
         ]
-        
+
         actual_calls = [(name, args, kwargs) for name, args, kwargs in manager.mock_calls]
         self.assertEqual(expected_calls, actual_calls)
 

@@ -2,7 +2,7 @@ import os
 
 import yaml
 
-from brad import DATA_DIR, BACKUP_DIR, CONFIG_DIR
+from brad import DATA_DIR, CONFIG_DIR
 
 HISTORY_FILE = os.path.join(DATA_DIR, "excel", "historical.ods")
 

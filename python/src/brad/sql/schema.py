@@ -2,11 +2,10 @@ import logging
 from typing import List
 
 from brad.sql.database import DatabaseManager
-from brad.sql.objects import Row, GeneratedIdOptions, Column, PrimaryKey, FkActions, ForeignKey, Unique, Schema, Table
+from brad.sql.objects import Row, GeneratedIdOptions, Column, PrimaryKey, Unique, Schema, Table
 from brad.sql.types import BigInt, Numeric, Boolean, Date, Text
 
 logger = logging.getLogger(__name__)
-
 
 # Table names
 ACCOUNT_TYPES = "account_types"
@@ -106,7 +105,6 @@ exchange_rate_tbl = Table(EXCHANGE_RATES, db_schema=REF).set_columns(
 ).set_constraint(
     PrimaryKey(['date', 'base_currency', 'target_currency'], "pk_exchange_rate")
 )
-
 
 provider_tbl = Table(PROVIDERS, db_schema=STG).set_columns(
     Column('id', BIGINT, generated_identity=GeneratedIdOptions.BY_DEFAULT),
@@ -210,7 +208,6 @@ product_transaction_tbl = Table(PRODUCT_TRANSACTIONS, db_schema=STG).set_columns
 )
 
 
-
 # ============================================================================
 
 def get_all_tables() -> List[Table]:
@@ -261,7 +258,7 @@ def create_schema(db_manager: DatabaseManager, force: bool = False, seed: bool =
                 # Drop tables in reverse order to respect foreign key dependencies
                 for table in reversed(tables):
                     table.drop(conn)
-                    
+
                 # Drop schemas
                 for schema in schemas:
                     schema.drop(conn)

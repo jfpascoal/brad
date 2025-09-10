@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime
 from decimal import Decimal
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -174,12 +174,12 @@ class TestParseAccounts(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             parse_accounts(self.test_file, self.test_tabs)
 
-@patch('brad.data.history.FINANCIAL_PRODUCT_LABELS', {
-        'units': ['Units', 'U.P.'],
-        'investment': ['Invested value'],
-        'value': ['Current value', 'Value']
-    })
 
+@patch('brad.data.history.FINANCIAL_PRODUCT_LABELS', {
+    'units': ['Units', 'U.P.'],
+    'investment': ['Invested value'],
+    'value': ['Current value', 'Value']
+})
 @patch('brad.data.history.logger')
 @patch('brad.data.history.pd.read_excel')
 class TestParseFinancialProducts(unittest.TestCase):
@@ -286,6 +286,7 @@ class TestParseFinancialProducts(unittest.TestCase):
 
         mock_read_excel.assert_not_called()
         self.assertEqual({}, result)
+
 
 @patch('brad.data.history.get_financial_product_label_map')
 @patch('brad.data.history.get_account_label_map')
@@ -484,36 +485,36 @@ class TestIngestFromExcel(unittest.TestCase):
         )
 
     def test_ingest_from_excel_returns_data(self, mock_parse_accounts, mock_parse_products,
-                                          mock_get_account_labels, mock_get_product_labels):
+                                            mock_get_account_labels, mock_get_product_labels):
         """Test that ingest_from_excel returns the processed data."""
         # Setup mocks
         mock_parse_accounts.return_value = self.mock_accounts_data
         mock_parse_products.return_value = self.mock_products_data
         mock_get_account_labels.return_value = self.mock_account_labels
         mock_get_product_labels.return_value = self.mock_product_labels
-        
+
         # Call the function
         result = ingest_from_excel(self.test_history_file, self.test_tabs)
-        
+
         # Verify return value structure
         self.assertIsInstance(result, dict)
         self.assertIn(ACCOUNT_BALANCES, result)
         self.assertIn(PRODUCT_VALUES, result)
-        
+
         # Verify account balance data
         account_balances = result[ACCOUNT_BALANCES]
         self.assertEqual(3, len(account_balances))  # 2 + 1 from mock data
-        
+
         # Verify product value data
         product_values = result[PRODUCT_VALUES]
         self.assertEqual(2, len(product_values))
-        
+
         # Verify specific data structure
         first_balance = account_balances[0]
         self.assertIn('date', first_balance)
         self.assertIn('balance', first_balance)
         self.assertIn('account_name', first_balance)
-        
+
         first_value = product_values[0]
         self.assertIn('date', first_value)
         self.assertIn('units', first_value)

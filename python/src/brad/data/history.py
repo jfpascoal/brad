@@ -7,11 +7,8 @@ from typing import Any, List, Dict
 import pandas as pd
 
 from brad.data import HISTORY_FILE, TABS, FINANCIAL_PRODUCT_LABELS
-from brad.data.backup import backup_data
 from brad.data.reference import get_account_label_map, get_financial_product_label_map
-from brad.sql.database import DatabaseManager
-from brad.sql.objects import Row
-from brad.sql.schema import account_balance_tbl, product_value_tbl, ACCOUNT_BALANCES, PRODUCT_VALUES
+from brad.sql.schema import ACCOUNT_BALANCES, PRODUCT_VALUES
 
 logger = getLogger(__name__)
 
@@ -114,7 +111,7 @@ def ingest_from_excel(history_file: str, tabs: Dict[str, List[str]] = TABS) \
     history_file = history_file or HISTORY_FILE
     logger.info(f"Loading historical data from '{history_file}'...")
     logger.info(f"Tab config: {tabs}")
-    
+
     # Process account balances
     account_labels = get_account_label_map()
     logger.debug(f"Account labels: {account_labels}")
@@ -148,4 +145,3 @@ def ingest_from_excel(history_file: str, tabs: Dict[str, List[str]] = TABS) \
         logger.info(f"Processed {len(values)} values for financial product '{product_name}'.")
 
     return dict(data)
-    
