@@ -13,7 +13,7 @@ REFERENCE_PATH = os.path.join(BACKUP_DIR, "reference.json")
 
 def get_data() -> Dict[str, Any]:
     """Get the reference data."""
-    with open(REFERENCE_PATH, 'rb') as f:
+    with open(REFERENCE_PATH, 'r') as f:
         return json.load(f).get("data", {})
 
 
