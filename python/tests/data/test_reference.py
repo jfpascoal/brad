@@ -1,6 +1,6 @@
 import json
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, mock_open
 
 from brad.data.reference import (
     get_data,
@@ -41,7 +41,7 @@ class TestReference(unittest.TestCase):
             ]
         }
 
-    @patch("builtins.open", new_callable=unittest.mock.mock_open, read_data=json.dumps({"data": {"key": "value"}}))
+    @patch("builtins.open", new_callable=mock_open, read_data=json.dumps({"data": {"key": "value"}}))
     def test_get_data(self, mock_file):
         """Test that get_data reads and parses the reference data correctly."""
         data = get_data()
