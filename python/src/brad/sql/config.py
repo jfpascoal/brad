@@ -50,7 +50,7 @@ class Config(BaseSettings):
 
             secret_path = os.path.join(secrets_dir, filename)
             if not os.path.exists(secret_path):
-                raise RuntimeError(f"Missing configuration for 'postgres_{field_name.upper()}'.")
+                raise RuntimeError(f"Missing configuration for 'POSTGRES_{field_name.upper()}'.")
 
             with open(secret_path, 'r') as f:
                 setattr(self, field_name, f.read().strip())
