@@ -2,49 +2,52 @@ import logging
 from typing import Any, Optional, List, Dict, Self
 
 from psycopg import Connection
+from pydantic import BaseModel, Field, ValidationError, ConfigDict
 
 from brad.sql.types import SqlType, Integer, BigInt, Boolean, Date, Text
 
 logger = logging.getLogger(__name__)
 
 
-class Row:
+class Row(BaseModel):
     """
     Represents a row of data that can be inserted into a database table.
     
-    A Row object can be initialized with a dictionary or keyword arguments,
-    providing both attribute-based and dictionary-style access to the data.
+    Uses Pydantic BaseModel for automatic validation, serialization,
+    and better error handling. Supports both dictionary and keyword initialization.
     """
+
+    model_config = ConfigDict(
+        extra='allow',  # Allow dynamic fields for database rows
+        arbitrary_types_allowed=True,
+        validate_assignment=True
+    )
 
     def __init__(self, data: Optional[Dict[str, Any]] = None, **kwargs):
         """
-        Initializes a Row object with data from a dictionary or keyword arguments.
+        Initializes a Row object with validation.
         
         :param data: Optional dictionary containing column-value pairs.
+        :param kwargs: Column-value pairs as keyword arguments.
         """
         if data:
-            self._dict = data
+            super().__init__(**data)
         else:
-            self._dict = kwargs
-
-        self._columns = list(self._dict.keys())
-        for k, v in self._dict.items():
-            setattr(self, k, v)
+            super().__init__(**kwargs)
 
     def __getitem__(self, item) -> Any:
         """
         Returns the value for the given column name.
 
         :param item: The column name to retrieve.
-        :return: The value for the specified column, or None if the column doesn't exist.
-        :raises AttributeError: If the column does not exist in the Row.
+        :return: The value for the specified column.
+        :raises KeyError: If the column does not exist in the Row.
         """
         try:
-            value = getattr(self, item)
+            return getattr(self, item)
         except AttributeError:
             logger.error(f"Column '{item}' does not exist in Row.")
-            raise
-        return value
+            raise AttributeError(f"Column '{item}' does not exist in Row")
 
     def columns(self) -> List[str]:
         """
@@ -52,7 +55,7 @@ class Row:
         
         :return: List of column names as strings.
         """
-        return self._columns
+        return list(self.model_dump().keys())
 
     def get_dict(self) -> Dict[str, Any]:
         """
@@ -60,7 +63,7 @@ class Row:
         
         :return: Dictionary mapping column names to their values.
         """
-        return {c: self[c] for c in self.columns()}
+        return self.model_dump()
 
 
 class GeneratedIdOptions:
