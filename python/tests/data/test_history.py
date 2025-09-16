@@ -20,23 +20,25 @@ class TestBalanceRow(unittest.TestCase):
 
     def test_balance_row_creation(self):
         """Test BalanceRow can be created with correct fields."""
-        date = datetime(2023, 1, 1)
+        input_date = datetime(2023, 1, 1)
+        expected_date = input_date.date()  # Pydantic converts datetime to date
         balance = Decimal('1000.50')
 
-        row = BalanceRow(date=date, balance=balance)
+        row = BalanceRow(date=input_date, balance=balance)
 
-        self.assertEqual(date, row.date)
+        self.assertEqual(expected_date, row.date)
         self.assertEqual(balance, row.balance)
 
     def test_balance_row_as_dict(self):
         """Test BalanceRow can be converted to dictionary."""
-        date = datetime(2023, 1, 1)
+        input_date = datetime(2023, 1, 1)
+        expected_date = input_date.date()  # Pydantic converts datetime to date
         balance = Decimal('1000.50')
 
-        row = BalanceRow(date=date, balance=balance)
+        row = BalanceRow(date=input_date, balance=balance)
         result = row._asdict()
 
-        expected = {'date': date, 'balance': balance}
+        expected = {'date': expected_date, 'balance': balance}
         self.assertEqual(expected, result)
 
 
@@ -45,39 +47,48 @@ class TestValueRow(unittest.TestCase):
 
     def test_value_row_creation(self):
         """Test ValueRow can be created with correct fields."""
-        date = datetime(2023, 1, 1)
+        input_date = datetime(2023, 1, 1)
+        expected_date = input_date.date()  # Pydantic converts datetime to date
         units = Decimal('100')
+        expected_units = Decimal('100.0000')  # Validator rounds to 4 places
         current_value = Decimal('1200.00')
+        expected_value = Decimal('1200.0000')  # Validator rounds to 4 places
 
-        row = ValueRow(date=date, units=units, current_value=current_value)
+        row = ValueRow(date=input_date, units=units, current_value=current_value)
 
-        self.assertEqual(date, row.date)
-        self.assertEqual(units, row.units)
-        self.assertEqual(current_value, row.current_value)
+        self.assertEqual(expected_date, row.date)
+        self.assertEqual(expected_units, row.units)
+        self.assertEqual(expected_value, row.current_value)
 
     def test_value_row_with_none_values(self):
         """Test ValueRow can be created with None values."""
-        date = datetime(2023, 1, 1)
+        input_date = datetime(2023, 1, 1)
+        expected_date = input_date.date()  # Pydantic converts datetime to date
+        current_value = Decimal('1200.00')
+        expected_value = Decimal('1200.0000')  # Validator rounds to 4 places
 
-        row = ValueRow(date=date, units=None, current_value=Decimal('1200.00'))
+        row = ValueRow(date=input_date, units=None, current_value=current_value)
 
-        self.assertEqual(date, row.date)
+        self.assertEqual(expected_date, row.date)
         self.assertIsNone(row.units)
-        self.assertEqual(Decimal('1200.00'), row.current_value)
+        self.assertEqual(expected_value, row.current_value)
 
     def test_value_row_as_dict(self):
         """Test ValueRow can be converted to dictionary."""
-        date = datetime(2023, 1, 1)
+        input_date = datetime(2023, 1, 1)
+        expected_date = input_date.date()  # Pydantic converts datetime to date
         units = Decimal('100')
+        expected_units = Decimal('100.0000')  # Validator rounds to 4 places
         current_value = Decimal('1200.00')
+        expected_value = Decimal('1200.0000')  # Validator rounds to 4 places
 
-        row = ValueRow(date=date, units=units, current_value=current_value)
+        row = ValueRow(date=input_date, units=units, current_value=current_value)
         result = row._asdict()
 
         expected = {
-            'date': date,
-            'units': units,
-            'current_value': current_value
+            'date': expected_date,
+            'units': expected_units,
+            'current_value': expected_value
         }
         self.assertEqual(expected, result)
 
@@ -127,22 +138,22 @@ class TestParseAccounts(unittest.TestCase):
         # Check Account A data
         account_a_data = result['Account A']
         self.assertEqual(2, len(account_a_data))
-        self.assertEqual(datetime(2023, 1, 1), account_a_data[0].date)
-        self.assertEqual(Decimal('1000.0'), account_a_data[0].balance)
-        self.assertEqual(datetime(2023, 2, 1), account_a_data[1].date)
-        self.assertEqual(Decimal('1050.0'), account_a_data[1].balance)
+        self.assertEqual(datetime(2023, 1, 1).date(), account_a_data[0].date)
+        self.assertEqual(Decimal('1000.00'), account_a_data[0].balance)  # Validator rounds to 2 places
+        self.assertEqual(datetime(2023, 2, 1).date(), account_a_data[1].date)
+        self.assertEqual(Decimal('1050.00'), account_a_data[1].balance)  # Validator rounds to 2 places
 
         # Check Account B data (should only have one entry due to zero filtering)
         account_b_data = result['Account B']
         self.assertEqual(1, len(account_b_data))
-        self.assertEqual(datetime(2023, 1, 1), account_b_data[0].date)
-        self.assertEqual(Decimal('2000.0'), account_b_data[0].balance)
+        self.assertEqual(datetime(2023, 1, 1).date(), account_b_data[0].date)
+        self.assertEqual(Decimal('2000.00'), account_b_data[0].balance)  # Validator rounds to 2 places
 
         # Check Account C data (should only have one entry due to None filtering)
         account_c_data = result['Account C']
         self.assertEqual(1, len(account_c_data))
-        self.assertEqual(datetime(2023, 2, 1), account_c_data[0].date)
-        self.assertEqual(Decimal('500.0'), account_c_data[0].balance)
+        self.assertEqual(datetime(2023, 2, 1).date(), account_c_data[0].date)
+        self.assertEqual(Decimal('500.00'), account_c_data[0].balance)  # Validator rounds to 2 places
 
     def test_parse_accounts_empty_tabs(self, mock_read_excel):
         """Test parsing with empty tabs list."""
@@ -228,21 +239,21 @@ class TestParseFinancialProducts(unittest.TestCase):
         self.assertEqual(2, len(product_a_data))
 
         first_entry = product_a_data[0]
-        self.assertEqual(datetime(2023, 1, 1), first_entry.date)
-        self.assertEqual(Decimal('100.0'), first_entry.units)
-        self.assertEqual(Decimal('1200.0'), first_entry.current_value)
+        self.assertEqual(datetime(2023, 1, 1).date(), first_entry.date)
+        self.assertEqual(Decimal('100.0000'), first_entry.units)  # Validator rounds to 4 places
+        self.assertEqual(Decimal('1200.0000'), first_entry.current_value)  # Validator rounds to 4 places
 
         # Check Product B data (should only have one entry due to zero filtering)
         product_b_data = result['Product B']
         self.assertEqual(1, len(product_b_data))
-        self.assertEqual(datetime(2023, 1, 1), product_b_data[0].date)
-        self.assertEqual(Decimal('50.0'), product_b_data[0].units)
-        self.assertEqual(Decimal('2000.0'), product_b_data[0].current_value)
+        self.assertEqual(datetime(2023, 1, 1).date(), product_b_data[0].date)
+        self.assertEqual(Decimal('50.0000'), product_b_data[0].units)  # Validator rounds to 4 places
+        self.assertEqual(Decimal('2000.0000'), product_b_data[0].current_value)  # Validator rounds to 4 places
 
         # Check Product C data (should only have one entry due to None filtering)
         product_c_data = result['Product C']
         self.assertEqual(1, len(product_c_data))
-        self.assertEqual(datetime(2023, 1, 1), product_c_data[0].date)
+        self.assertEqual(datetime(2023, 1, 1).date(), product_c_data[0].date)
 
     def test_parse_financial_products_unrecognized_columns(self, mock_read_excel, mock_logger):
         """Test handling of unrecognized column patterns."""
@@ -377,7 +388,7 @@ class TestIngestFromExcel(unittest.TestCase):
 
         # Check first account balance entry
         first_balance = account_balances[0]
-        self.assertEqual(datetime(2023, 1, 1), first_balance['date'])
+        self.assertEqual(datetime(2023, 1, 1).date(), first_balance['date'])
         self.assertEqual(Decimal('1000'), first_balance['balance'])
         self.assertEqual('Account A Name', first_balance['account_name'])
 
@@ -387,7 +398,7 @@ class TestIngestFromExcel(unittest.TestCase):
 
         # Check first product value entry
         first_value = product_values[0]
-        self.assertEqual(datetime(2023, 1, 1), first_value['date'])
+        self.assertEqual(datetime(2023, 1, 1).date(), first_value['date'])
         self.assertEqual(Decimal('100'), first_value['units'])
         self.assertEqual(Decimal('1200'), first_value['current_value'])
         self.assertEqual('Product A Name', first_value['financial_product_name'])

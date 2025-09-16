@@ -1,10 +1,12 @@
 import re
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from decimal import Decimal
 from logging import getLogger
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Union, Optional
+from datetime import date, datetime
 
 import pandas as pd
+from pydantic import BaseModel, Field, field_validator
 
 from brad.data import HISTORY_FILE, TABS, FINANCIAL_PRODUCT_LABELS
 from brad.data.reference import get_account_label_map, get_financial_product_label_map
@@ -12,8 +14,55 @@ from brad.sql.schema import ACCOUNT_BALANCES, PRODUCT_VALUES
 
 logger = getLogger(__name__)
 
-BalanceRow = namedtuple('BalanceRow', ['date', 'balance'])
-ValueRow = namedtuple('ValueRow', ['date', 'units', 'current_value'])
+class BalanceRow(BaseModel):
+    """Represents an account balance at a specific date."""
+    date: Union[date, datetime]
+    balance: Decimal
+    
+    @field_validator('date')
+    @classmethod
+    def validate_date(cls, v):
+        """Convert datetime to date if needed."""
+        if isinstance(v, datetime):
+            return v.date()
+        return v
+    
+    @field_validator('balance')
+    @classmethod
+    def validate_balance(cls, v):
+        """Ensure balance has proper decimal precision."""
+        return round(v, 2)
+    
+    def _asdict(self) -> Dict[str, Any]:
+        """Provide namedtuple-like interface for backward compatibility."""
+        return self.model_dump()
+
+
+class ValueRow(BaseModel):
+    """Represents financial product value and units at a specific date."""
+    date: Union[date, datetime]
+    units: Optional[Decimal] = None
+    current_value: Optional[Decimal] = None
+    
+    @field_validator('date')
+    @classmethod
+    def validate_date(cls, v):
+        """Convert datetime to date if needed."""
+        if isinstance(v, datetime):
+            return v.date()
+        return v
+    
+    @field_validator('units', 'current_value')
+    @classmethod
+    def validate_decimal_precision(cls, v):
+        """Ensure decimal values have proper precision."""
+        if v is None:
+            return None
+        return round(v, 4)
+    
+    def _asdict(self) -> Dict[str, Any]:
+        """Provide namedtuple-like interface for backward compatibility."""
+        return self.model_dump()
 
 
 def parse_accounts(history_file: str, tabs: List[str]) -> Dict[str, List[BalanceRow]]:
