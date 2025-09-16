@@ -47,7 +47,7 @@ class Row(BaseModel):
             return getattr(self, item)
         except AttributeError:
             logger.error(f"Column '{item}' does not exist in Row.")
-            raise AttributeError(f"Column '{item}' does not exist in Row")
+            raise KeyError(f"Column '{item}' does not exist in Row")
 
     def columns(self) -> List[str]:
         """
