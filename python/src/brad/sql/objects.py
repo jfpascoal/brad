@@ -1,10 +1,11 @@
 import logging
-from typing import Any, Optional, List, Dict, Self
+from typing import Any, Optional, List, Dict, Self, Type, Union
+from functools import lru_cache
 
 from psycopg import Connection
-from pydantic import BaseModel, Field, ValidationError, ConfigDict
+from pydantic import BaseModel, Field, ValidationError, ConfigDict, create_model, field_validator, model_validator
 
-from brad.sql.types import SqlType, Integer, BigInt, Boolean, Date, Text
+from .types import SqlType, Integer, BigInt, Boolean, Date, Text
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +42,13 @@ class Row(BaseModel):
 
         :param item: The column name to retrieve.
         :return: The value for the specified column.
-        :raises KeyError: If the column does not exist in the Row.
+        :raises AttributeError: If the column does not exist in the Row.
         """
         try:
             return getattr(self, item)
         except AttributeError:
             logger.error(f"Column '{item}' does not exist in Row.")
-            raise KeyError(f"Column '{item}' does not exist in Row")
+            raise  # Re-raise the original AttributeError
 
     def columns(self) -> List[str]:
         """
@@ -183,6 +184,7 @@ class PrimaryKey(Constraint):
         :param columns: List of column names that form the primary key.
         :param name: Optional constraint name.
         """
+        self.columns = columns  # Store columns for validation
         cols_str = ", ".join(f'"{c}"' for c in columns)
         super().__init__(f'PRIMARY KEY ({cols_str})', name)
 
@@ -228,6 +230,7 @@ class Unique(Constraint):
         :param columns: List of column names that must have unique values.
         :param name: Optional constraint name.
         """
+        self.columns = columns  # Store columns for validation
         cols_str = ", ".join(f'"{c}"' for c in columns)
         super().__init__(f'UNIQUE ({cols_str})', name)
 
@@ -265,6 +268,210 @@ class Schema:
         with conn.cursor() as cursor:
             cursor.execute(sql)
         return self
+
+
+class TableRowValidator:
+    """
+    Factory class for creating and caching Pydantic models for table row validation.
+    
+    This class dynamically generates table-specific Pydantic models based on table schema
+    definitions, providing robust validation with proper error messages and type safety.
+    """
+    
+    _model_cache: Dict[str, Type[BaseModel]] = {}
+    
+    @classmethod
+    def create_table_model(cls, table: 'Table') -> Type[BaseModel]:
+        """
+        Create a Pydantic model for validating rows against a table schema.
+        
+        :param table: Table instance to create validation model for
+        :return: Pydantic model class for validation
+        """
+        # Check cache first
+        cache_key = f"{table.qualified_name}_{hash(str(table.columns))}"
+        if cache_key in cls._model_cache:
+            return cls._model_cache[cache_key]
+        
+        # Build field definitions
+        fields = {}
+        validators = {}
+        
+        # Get writable columns (exclude generated identity columns)
+        writable_columns = set(table.get_writable_columns())
+        
+        for col in table.columns:
+            # Skip non-writable columns
+            if col.name not in writable_columns:
+                continue
+                
+            field_type = col.sql_type.py()
+            
+            # Handle optional/nullable fields
+            if not col.not_null:
+                field_type = Optional[field_type]
+            
+            # Set up field constraints
+            field_kwargs = {}
+            
+            # Handle field requirements:
+            # - Columns with defaults are always optional
+            # - Generated identity BY_DEFAULT columns are optional (can be provided or auto-generated)
+            # - NOT NULL columns without defaults are required
+            # - Nullable columns are optional
+            if col.default is not None:
+                # Column has a default value
+                field_kwargs['default'] = col.default
+            elif col.generated_identity == GeneratedIdOptions.BY_DEFAULT:
+                # BY_DEFAULT allows explicit values but makes the field optional
+                field_kwargs['default'] = None
+            elif col.not_null:
+                # Required field with no default
+                field_kwargs['default'] = ...
+            else:
+                # Nullable field with no default
+                field_kwargs['default'] = None
+            
+            # Add description for better error messages
+            field_kwargs['description'] = f"Column {col.name} of type {col.sql_type.__class__.__name__}"
+            
+            fields[col.name] = (field_type, Field(**field_kwargs))
+        
+        # Create the dynamic model
+        model_name = f"{table.name.title()}RowModel"
+        
+        # Create model with extra='forbid' to prevent unknown columns
+        DynamicModel = create_model(
+            model_name,
+            __config__=ConfigDict(
+                extra='forbid',
+                arbitrary_types_allowed=True,
+                str_strip_whitespace=True
+            ),
+            **fields
+        )
+        
+        # Add custom validation methods to the model
+        cls._add_table_validators(DynamicModel, table)
+        
+        # Cache the model
+        cls._model_cache[cache_key] = DynamicModel
+        
+        return DynamicModel
+    
+    @classmethod
+    def _add_table_validators(cls, model_class: Type[BaseModel], table: 'Table') -> None:
+        """
+        Add table-specific validators to the dynamic model.
+        
+        :param model_class: The dynamically created model class
+        :param table: Table instance for validation rules
+        """
+        # Add field validators for specific constraints
+        for col in table.columns:
+            if col.not_null:
+                # Create a validator for not-null constraints
+                validator_name = f"validate_{col.name}_not_null"
+                validator_func = cls._create_not_null_validator(col.name)
+                setattr(model_class, validator_name, validator_func)
+        
+        # Add model validators for cross-field validation based on table constraints
+        cls._add_constraint_validators(model_class, table)
+    
+    @staticmethod
+    def _create_not_null_validator(column_name: str):
+        """Create a field validator for not-null constraints."""
+        @field_validator(column_name)
+        @classmethod
+        def validate_not_null(cls, v, info):
+            if v is None:
+                raise ValueError(f"Column '{column_name}' cannot be None")
+            return v
+        return validate_not_null
+    
+    @classmethod
+    def _add_constraint_validators(cls, model_class: Type[BaseModel], table: 'Table') -> None:
+        """
+        Add model validators for table constraints that require cross-field validation.
+        
+        :param model_class: The dynamically created model class
+        :param table: Table instance for constraint validation rules
+        """
+        # Check if there are constraints that need cross-field validation
+        constraint_validators = []
+        
+        for constraint in table.constraints:
+            if hasattr(constraint, 'columns') and len(constraint.columns) > 1:
+                # Multi-column constraints need model-level validation
+                if constraint.__class__.__name__ == 'PrimaryKey':
+                    constraint_validators.append(
+                        cls._create_primary_key_validator(constraint.columns)
+                    )
+                elif constraint.__class__.__name__ == 'Unique':
+                    constraint_validators.append(
+                        cls._create_unique_constraint_validator(constraint.columns)
+                    )
+        
+        # Add composite model validator if we have any constraint validators
+        if constraint_validators:
+            composite_validator = cls._create_composite_constraint_validator(constraint_validators, table.name)
+            setattr(model_class, 'validate_table_constraints', composite_validator)
+    
+    @staticmethod
+    def _create_primary_key_validator(pk_columns: List[str]):
+        """Create a validator function for primary key constraints."""
+        def validate_pk(values: Dict[str, Any]) -> str:
+            pk_values = [values.get(col) for col in pk_columns]
+            if any(v is None for v in pk_values):
+                missing_cols = [col for col, val in zip(pk_columns, pk_values) if val is None]
+                return f"Primary key columns cannot be None: {missing_cols}"
+            return None
+        return validate_pk
+    
+    @staticmethod
+    def _create_unique_constraint_validator(unique_columns: List[str]):
+        """Create a validator function for unique constraints."""
+        def validate_unique(values: Dict[str, Any]) -> str:
+            # Note: This validates the structure but cannot check uniqueness against database
+            # Actual uniqueness validation would require database access
+            unique_values = [values.get(col) for col in unique_columns]
+            if all(v is None for v in unique_values):
+                return f"At least one value in unique constraint columns must be non-null: {unique_columns}"
+            return None
+        return validate_unique
+    
+    @staticmethod
+    def _create_composite_constraint_validator(validators: List, table_name: str):
+        """Create a composite model validator that runs all constraint validators."""
+        @model_validator(mode='after')
+        @classmethod
+        def validate_constraints(cls, values):
+            errors = []
+            
+            # Convert model instance to dict for validation functions
+            if hasattr(values, 'model_dump'):
+                values_dict = values.model_dump()
+            else:
+                values_dict = dict(values)  # Fallback for dict-like objects
+            
+            # Run all constraint validators
+            for validator_func in validators:
+                error = validator_func(values_dict)
+                if error:
+                    errors.append(error)
+            
+            if errors:
+                constraint_errors = '; '.join(errors)
+                raise ValueError(f"Table constraint violations in '{table_name}': {constraint_errors}")
+            
+            return values
+        
+        return validate_constraints
+    
+    @classmethod
+    def clear_cache(cls):
+        """Clear the model cache. Useful for testing or schema changes."""
+        cls._model_cache.clear()
 
 
 class Table:
@@ -364,49 +571,64 @@ class Table:
 
     def _validate_row(self, row: Row) -> bool:
         """
-        Validates a Row object against the table's schema.
+        Validates a Row object against the table's schema using Pydantic dynamic models.
         :param row: A Row object to validate.
         :return: True if the row is valid, False otherwise.
         """
-        row_columns = row.columns()
-        table_cols = {col.name for col in self.columns}
-        writable_cols = set(self.get_writable_columns())
-        for row_col in row_columns:
-            if row_col not in writable_cols:
-                if row_col not in table_cols:
-                    logger.warning(f"Column '{row_col}' is not part of the table {self.qualified_name}."
-                                   f" Row will not be inserted: {row.get_dict()}")
-                    return False
+        try:
+            # Create or get cached Pydantic model for this table
+            table_model = TableRowValidator.create_table_model(self)
+            
+            # Validate the row data using the Pydantic model
+            validated_data = table_model(**row.get_dict())
+            return True
+            
+        except ValidationError as e:
+            # Log detailed validation errors with enhanced formatting
+            logger.warning(f"Row validation failed for table {self.qualified_name}")
+            logger.warning(f"Problematic row data: {row.get_dict()}")
+            
+            # Group errors by type for better readability
+            field_errors = []
+            value_errors = []
+            missing_errors = []
+            
+            for error in e.errors():
+                error_type = error.get('type', 'unknown')
+                field = error.get('loc', ['unknown'])[0] if error.get('loc') else 'unknown'
+                msg = error.get('msg', 'unknown error')
+                input_value = error.get('input', 'N/A')
+                
+                if error_type == 'missing':
+                    missing_errors.append(f"  ❌ Missing required field '{field}': {msg}")
+                elif error_type in ('type_error', 'value_error'):
+                    value_errors.append(f"  ❌ Field '{field}' (value: {input_value}): {msg}")
                 else:
-                    logger.warning(f"Column '{row_col}' was provided, but is autogenerated in table {self.qualified_name}."
-                                   f" Row will not be inserted: {row.get_dict()}")
-                    return False
-
-        for col in self.columns:
-            column_name = col.name
-            if column_name not in row_columns:
-                if (col.generated_identity in (GeneratedIdOptions.ALWAYS, GeneratedIdOptions.BY_DEFAULT)
-                        or col.default is not None):
-                    continue
-                if col.not_null:
-                    logger.warning(f"Column '{column_name}' is required in table {self.qualified_name}"
-                                   f" but was not provided. Row will not be inserted: {row.get_dict()}")
-                    return False
-                continue
-
-            value = row[column_name]
-            if col.not_null and value is None:
-                logger.warning(f"Column '{column_name}' in table {self.qualified_name} is NOT NULL"
-                               f" but was provided as None. Row will not be inserted: {row.get_dict()}")
-                return False
-            elif value is None:
-                continue
-            elif not isinstance(value, col.sql_type.py()):
-                logger.warning(
-                    f"Column '{column_name}' in table {self.qualified_name} expects type {col.sql_type.py().__name__}"
-                    f" but received {type(value).__name__}. Row will not be inserted: {row.get_dict()}")
-                return False
-        return True
+                    field_errors.append(f"  ❌ Field '{field}': {msg} (type: {error_type}, input: {input_value})")
+            
+            # Log errors in organized groups
+            if missing_errors:
+                logger.warning("Missing required fields:")
+                for error in missing_errors:
+                    logger.warning(error)
+            
+            if value_errors:
+                logger.warning("Value validation errors:")
+                for error in value_errors:
+                    logger.warning(error)
+            
+            if field_errors:
+                logger.warning("Field validation errors:")
+                for error in field_errors:
+                    logger.warning(error)
+            
+            logger.warning("Row will not be inserted due to validation failures.")
+            return False
+        except Exception as e:
+            # Log any unexpected errors during validation
+            logger.error(f"Unexpected error during row validation for table {self.qualified_name}: {e}")
+            logger.warning(f"Row will not be inserted: {row.get_dict()}")
+            return False
 
     def insert(self, conn: Connection, rows: List[Row]) -> Self:
         """
