@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "brad"
 version = "0.0.1"
 authors = [
-    {name = "JF Pascoal", email = "jfpascoal@gmail.com"},
+    {name = "JF Pascoal"},
 ]
 description = ""
 requires-python = ">=3.9"
