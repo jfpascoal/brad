@@ -38,14 +38,8 @@ fi
 if docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -d "${DB_NAME}" \
         -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | grep -q 0; then
     echo "Initializing the database schema..."
-    if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
-        # Windows
-        source .venv/Scripts/activate
-    else
-        # Unix-like systems
-        source .venv/bin/activate
-    fi
-    python ./python/src/brad/main.py db_init
+    # Run with uv
+    uv run ./src/brad/main.py db_init
     if [ $? -ne 0 ]; then
         echo "Failed to initialize the database schema."
         exit 1

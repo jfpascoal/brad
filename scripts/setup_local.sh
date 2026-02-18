@@ -22,12 +22,8 @@ else
     source .venv/bin/activate
 fi
 
-# Install dependencies
-echo "Installing dependencies..."
-pip install -r ./python/requirements.txt
-
-# Build the application
-echo "Building the application..."
-pip install -e ./python
+# Install dependencies and build
+echo "Installing dependencies and building..."
+uv sync
 
 echo "Setup complete."
