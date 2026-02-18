@@ -124,7 +124,7 @@ def load_history(args: List[str]) -> None:
 
 if __name__ == "__main__":
 
-    logging.basicConfig(filename=f"python/logs/brad_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log",
+    logging.basicConfig(filename=f"logs/brad_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log",
                         level=logging.DEBUG)
     logger.info("\n _                _ "
                 "\n| |__ _ _ __ _ __| |"

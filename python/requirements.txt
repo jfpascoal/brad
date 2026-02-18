@@ -1,7 +1,0 @@
-psycopg[binary]
-pandas
-cryptography
-odfpy
-pyyaml
-pytest
-pytest-cov
