@@ -127,13 +127,15 @@ def reset() -> None:
 
 @cli.command()
 @click.option(
-    "-o", "--output",
+    "-o",
+    "--output",
     type=click.Path(path_type=Path),
     default=None,
     help="Output file path",
 )
 @click.option(
-    "--format", "fmt",
+    "--format",
+    "fmt",
     type=click.Choice(["custom", "plain"]),
     default="custom",
     help="pg_dump format",

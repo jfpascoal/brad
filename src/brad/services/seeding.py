@@ -1,5 +1,5 @@
 import logging
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
@@ -20,7 +20,6 @@ from brad.core.models.operational import (
 from brad.core.models.reference import (
     AccountType,
     Currency,
-    ExchangeRate,
     ProductType,
     TransactionType,
 )
@@ -145,13 +144,9 @@ def _seed_financial_products(session: Session, items: list[dict]) -> int:
                     if txn.get("amount_base_currency")
                     else None
                 ),
-                units=(
-                    Decimal(str(txn["units"])) if txn.get("units") else None
-                ),
+                units=(Decimal(str(txn["units"])) if txn.get("units") else None),
                 unit_value=(
-                    Decimal(str(txn["unit_value"]))
-                    if txn.get("unit_value")
-                    else None
+                    Decimal(str(txn["unit_value"])) if txn.get("unit_value") else None
                 ),
             )
             session.add(pt)
@@ -206,11 +201,7 @@ def seed_all(session: Session, seed_dir: Path) -> dict[str, int]:
     path = seed_dir / "financial_products.yaml"
     if path.exists():
         items = _load_yaml(path)
-        results["financial_products.yaml"] = _seed_financial_products(
-            session, items
-        )
-        logger.info(
-            f"Imported {results['financial_products.yaml']} financial products"
-        )
+        results["financial_products.yaml"] = _seed_financial_products(session, items)
+        logger.info(f"Imported {results['financial_products.yaml']} financial products")
 
     return results

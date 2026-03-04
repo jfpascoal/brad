@@ -5,7 +5,6 @@ import re
 from collections import defaultdict
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
 
 # TODO(refactor): Replace `pandas` with a lighter library like `openpyxl` or `pyexcel-ods`.
 # pandas is an extremely heavy dependency (>30MB) just to read basic spreadsheet tabs.
@@ -55,9 +54,7 @@ def _build_history_map(seed_dir: Path) -> tuple[dict, dict]:
     return account_map, product_map
 
 
-def _parse_account_balances(
-    history_file: str, tabs: list
-) -> dict:
+def _parse_account_balances(history_file: str, tabs: list) -> dict:
     """Parse account balances from Excel tabs."""
     balances = defaultdict(list)
 
@@ -101,7 +98,7 @@ def _parse_product_values(
     if not all_lbls:
         return {}
 
-    pat = re.compile("|".join(re.escape(l) for l in all_lbls))
+    pat = re.compile("|".join(re.escape(lbl) for lbl in all_lbls))
     values = defaultdict(list)
 
     for tab in tabs:
@@ -190,9 +187,7 @@ def ingest_from_excel(session: Session, history_file: Path) -> dict:
 
             entity = account_repo.get_by_name(name)
             if not entity:
-                logger.warning(
-                    f"Account '{name}' not found in DB. Skipping."
-                )
+                logger.warning(f"Account '{name}' not found in DB. Skipping.")
                 continue
 
             for bal in balances:
@@ -214,9 +209,7 @@ def ingest_from_excel(session: Session, history_file: Path) -> dict:
 
             entity = product_repo.get_by_name(name)
             if not entity:
-                logger.warning(
-                    f"Product '{name}' not found in DB. Skipping."
-                )
+                logger.warning(f"Product '{name}' not found in DB. Skipping.")
                 continue
 
             for val in values:

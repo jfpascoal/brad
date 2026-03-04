@@ -6,17 +6,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 class Base(DeclarativeBase):
     """Base class for all ORM models."""
+
     pass
-
-
-class TimestampMixin(CreatedAtMixin):
-    """Mixin that adds created_at and updated_at columns."""
-
-    updated_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        onupdate=func.now(),
-        nullable=True,
-    )
 
 
 class CreatedAtMixin:
@@ -26,4 +17,14 @@ class CreatedAtMixin:
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
+    )
+
+
+class TimestampMixin(CreatedAtMixin):
+    """Mixin that adds created_at and updated_at columns."""
+
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        onupdate=func.now(),
+        nullable=True,
     )

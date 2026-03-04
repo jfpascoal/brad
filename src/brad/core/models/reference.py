@@ -50,9 +50,7 @@ class ExchangeRate(Base):
     """Daily exchange rates between currency pairs."""
 
     __tablename__ = "exchange_rates"
-    __table_args__ = (
-        UniqueConstraint("date", "base_currency", "target_currency"),
-    )
+    __table_args__ = (UniqueConstraint("date", "base_currency", "target_currency"),)
 
     date: Mapped["Date"] = mapped_column(Date, primary_key=True)
     base_currency: Mapped[str] = mapped_column(
