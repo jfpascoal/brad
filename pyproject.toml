@@ -16,8 +16,15 @@ dependencies = [
     "pandas",
     "cryptography",
     "odfpy",
-    "pyyaml"
+    "pyyaml",
+    "sqlalchemy>=2.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "click>=8.0",
 ]
+
+[project.scripts]
+brad = "brad.cli:cli"
 
 [dependency-groups]
 dev = [
