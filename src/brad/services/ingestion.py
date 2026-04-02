@@ -71,7 +71,7 @@ def _parse_account_balances(history_file: str, tabs: list) -> dict:
                 date_val = row[date_col]
                 balance_val = row[acct]
 
-                if pd.isna(balance_val) or balance_val == 0:
+                if pd.isna(date_val) or pd.isna(balance_val) or balance_val == 0:
                     continue
 
                 balances[acct.strip()].append(
@@ -131,7 +131,7 @@ def _parse_product_values(
                 units_val = row[cols["units"]] if "units" in cols else None
                 value_val = row[cols["value"]] if "value" in cols else None
 
-                if pd.isna(value_val) or value_val == 0:
+                if pd.isna(date_val) or pd.isna(value_val) or value_val == 0:
                     continue
 
                 values[prod].append(
@@ -163,7 +163,7 @@ def ingest_from_excel(session: Session, history_file: Path) -> dict:
         raise FileNotFoundError(f"Missing history config at: {config_path}")
 
     with config_path.open() as f:
-        config = yaml.safe_load(f)
+        config = yaml.safe_load(f) or {}
         tabs_config = config.get("tabs", {})
         labels_config = config.get("financial_product_labels", {})
 
