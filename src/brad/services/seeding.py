@@ -44,11 +44,19 @@ def _resolve_name(session: Session, model: type[Base], name: str) -> int:
 
 
 def _seed_simple(session: Session, model: type[Base], items: list[dict]) -> int:
-    """Insert simple entities (no FK resolution needed)."""
+    """Insert or update simple entities using natural key de-duplication."""
     count = 0
+    # Determine the natural key: 'code' for Currency, 'name' for everything else
+    key_attr = "code" if hasattr(model, "code") else "name"
     for item in items:
-        entity = model(**item)
-        session.merge(entity)
+        key_val = item.get(key_attr)
+        stmt = select(model).where(getattr(model, key_attr) == key_val)
+        existing = session.scalars(stmt).first()
+        if existing:
+            for k, v in item.items():
+                setattr(existing, k, v)
+        else:
+            session.add(model(**item))
         count += 1
     session.flush()
     return count
@@ -74,6 +82,14 @@ def _seed_accounts(session: Session, items: list[dict]) -> int:
             val = item.get(date_field)
             if isinstance(val, str):
                 item[date_field] = date.fromisoformat(val)
+
+        # Check if account already exists by name
+        existing = session.scalars(
+            select(Account).where(Account.name == item["name"])
+        ).first()
+        if existing:
+            count += 1
+            continue
 
         account = Account(**item)
         session.add(account)
@@ -116,6 +132,14 @@ def _seed_financial_products(session: Session, items: list[dict]) -> int:
             item["linked_account_id"] = _resolve_name(
                 session, Account, linked_account_name
             )
+
+        # Check if product already exists by name
+        existing = session.scalars(
+            select(FinancialProduct).where(FinancialProduct.name == item.get("name"))
+        ).first()
+        if existing:
+            count += 1
+            continue
 
         product = FinancialProduct(**item)
         session.add(product)
