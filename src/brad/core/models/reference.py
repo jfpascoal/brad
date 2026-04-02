@@ -1,3 +1,4 @@
+from datetime import date as date_type
 from decimal import Decimal
 
 from sqlalchemy import Date, Numeric, String, UniqueConstraint
@@ -52,7 +53,7 @@ class ExchangeRate(Base):
     __tablename__ = "exchange_rates"
     __table_args__ = (UniqueConstraint("date", "base_currency", "target_currency"),)
 
-    date: Mapped["Date"] = mapped_column(Date, primary_key=True)
+    date: Mapped[date_type] = mapped_column(Date, primary_key=True)
     base_currency: Mapped[str] = mapped_column(
         String(3),
         primary_key=True,
