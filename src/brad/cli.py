@@ -4,8 +4,6 @@ from pathlib import Path
 import click
 
 from brad.core.config import get_settings
-from brad.core.db import SessionLocal, engine
-from brad.core.models.base import Base
 
 import brad.core.models.reference  # noqa: F401
 import brad.core.models.operational  # noqa: F401
@@ -34,8 +32,11 @@ def db() -> None:
 @db.command()
 def init() -> None:
     """Create all database tables."""
+    from brad.core.db import get_engine
+    from brad.core.models.base import Base
+
     click.echo("Creating tables...")
-    Base.metadata.create_all(engine)
+    Base.metadata.create_all(get_engine())
     click.echo("✓ All tables created.")
 
 
@@ -48,12 +49,14 @@ def init() -> None:
 )
 def seed(seed_dir: Path | None) -> None:
     """Populate the database with initial historical data."""
+    from brad.core.db import get_session_factory
     from brad.services.seeding import seed_all
 
     settings = get_settings()
     if seed_dir is None:
         seed_dir = settings.seed_dir
 
+    SessionLocal = get_session_factory()
     click.echo(f"Seeding initial data from {seed_dir}...")
     with SessionLocal() as session:
         try:
@@ -77,12 +80,14 @@ def seed(seed_dir: Path | None) -> None:
 )
 def ingest(history_file: Path | None) -> None:
     """Ingest historical account and product data from Excel."""
+    from brad.core.db import get_session_factory
     from brad.services.ingestion import ingest_from_excel
 
     settings = get_settings()
     if history_file is None:
         history_file = settings.data_dir / "excel" / "historical.ods"
 
+    SessionLocal = get_session_factory()
     click.echo(f"Ingesting data from {history_file}...")
     with SessionLocal() as session:
         try:
@@ -101,9 +106,12 @@ def ingest(history_file: Path | None) -> None:
 @click.confirmation_option(prompt="This will drop and recreate all tables. Continue?")
 def reset() -> None:
     """Drop all tables, recreate, and re-seed initial data."""
+    from brad.core.db import get_engine, get_session_factory
+    from brad.core.models.base import Base
     from brad.services.seeding import seed_all
 
     settings = get_settings()
+    engine = get_engine()
 
     click.echo("Dropping all tables...")
     Base.metadata.drop_all(engine)
@@ -111,6 +119,7 @@ def reset() -> None:
     click.echo("Creating tables...")
     Base.metadata.create_all(engine)
 
+    SessionLocal = get_session_factory()
     click.echo(f"Seeding initial data from {settings.seed_dir}...")
     with SessionLocal() as session:
         try:
