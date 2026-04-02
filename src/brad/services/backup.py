@@ -1,4 +1,5 @@
 import logging
+import os
 import subprocess
 from pathlib import Path
 
@@ -36,7 +37,7 @@ def backup_database(output_path: Path | None = None, fmt: str = "custom") -> Pat
         f"--file={output_path}",
     ]
 
-    env = {"PGPASSWORD": settings.postgres_password}
+    env = {**os.environ, "PGPASSWORD": settings.postgres_password}
 
     logger.info(f"Running pg_dump → {output_path}")
     result = subprocess.run(cmd, env=env, capture_output=True, text=True)
