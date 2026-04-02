@@ -16,7 +16,7 @@ up:
     @echo "Starting the database container..."
     docker-compose -f docker/docker-compose.yml up -d
     @echo "Waiting for the Postgres server to be ready..."
-    @while ! docker exec brad-db-1 pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done
+    @while ! docker exec brad-db-1 pg_isready > /dev/null 2>&1; do sleep 1; done
     @echo "Initializing the database schema..."
     uv run brad db init
     @echo "Startup complete."
