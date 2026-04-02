@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -10,7 +11,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="",
-        secrets_dir="/run/secrets",
+        secrets_dir=os.environ.get("BRAD_SECRETS_DIR", "/run/secrets"),
         case_sensitive=False,
     )
 
