@@ -107,32 +107,11 @@ class HolderRead(HolderCreate):
     id: int
 
 
-class AccountRead(BaseModel):
+class AccountRead(AccountCreate):
     model_config = ConfigDict(from_attributes=True)
-
     id: int
-    name: str
-    account_type_id: int
-    currency_code: str
-    provider_id: int
-    account_number: str | None
-    sort_code: str | None
-    iban: str | None
-    swift_code: str | None
-    opening_date: date | None
-    closing_date: date | None
-    is_active: bool
 
 
-class FinancialProductRead(BaseModel):
+class FinancialProductRead(FinancialProductCreate):
     model_config = ConfigDict(from_attributes=True)
-
     id: int
-    name: str
-    product_type_id: int
-    currency_code: str
-    linked_account_id: int | None
-    provider_id: int
-    ticker: str | None
-    isin: str | None
-    is_active: bool
