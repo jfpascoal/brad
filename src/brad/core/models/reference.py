@@ -1,7 +1,7 @@
 from datetime import date as date_type
 from decimal import Decimal
 
-from sqlalchemy import Date, Numeric, String, UniqueConstraint
+from sqlalchemy import Date, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from brad.core.models.base import Base
@@ -51,7 +51,6 @@ class ExchangeRate(Base):
     """Daily exchange rates between currency pairs."""
 
     __tablename__ = "exchange_rates"
-    __table_args__ = (UniqueConstraint("date", "base_currency", "target_currency"),)
 
     date: Mapped[date_type] = mapped_column(Date, primary_key=True)
     base_currency: Mapped[str] = mapped_column(
