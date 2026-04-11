@@ -10,7 +10,7 @@ import os
 
 import streamlit as st
 
-from brad.sql import DatabaseManager
+from brad.core.db import get_session_factory
 
 
 @st.dialog('Confirm Exit')
@@ -34,11 +34,11 @@ def init_session_state() -> None:
     """
     Initialises Streamlit session state variables.
 
-    Sets up the database manager and any other persistent state needed
+    Sets up the session factory and any other persistent state needed
     across page navigations and reruns.
     """
-    if 'db' not in st.session_state:
-        st.session_state.db = DatabaseManager()
+    if 'session_factory' not in st.session_state:
+        st.session_state.session_factory = get_session_factory()
 
     # Batch entry state for balances
     if 'balance_batch' not in st.session_state:

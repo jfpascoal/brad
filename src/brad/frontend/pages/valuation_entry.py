@@ -12,12 +12,10 @@ from typing import Optional
 
 import streamlit as st
 
-from brad.sql import (
-    DatabaseManager,
-    list_financial_products,
-    get_latest_valuation,
-    insert_valuations,
-)
+import contextlib
+
+from brad.core.models.operational import FinancialProduct, ProductValue
+from brad.repositories.products import ProductRepository, ProductValueRepository
 from brad.frontend.utils import (
     format_currency,
     format_delta,
@@ -26,33 +24,31 @@ from brad.frontend.utils import (
 )
 
 
-def get_db() -> DatabaseManager:
-    """
-    Retrieves the DatabaseManager from session state.
-
-    :return: DatabaseManager instance.
-    """
-    return st.session_state.db
+@contextlib.contextmanager
+def get_session():
+    """Provides a transactional scope around a series of operations."""
+    with st.session_state.session_factory() as session:
+        yield session
 
 
-def render_last_entry_preview(product_name: str, currency: str) -> Optional[dict]:
+def render_last_entry_preview(product: FinancialProduct) -> Optional[ProductValue]:
     """
     Renders the preview of the most recent valuation entry for a product.
 
-    :param product_name: Name of the selected financial product.
-    :param currency: Currency code of the product.
-    :return: The latest valuation entry dict, or None if no entries exist.
+    :param product: The selected FinancialProduct model.
+    :return: The latest ProductValue model, or None if no entries exist.
     """
-    latest = get_latest_valuation(get_db(), product_name)
+    with get_session() as session:
+        latest = ProductValueRepository(session).get_latest(product.id)
 
     if latest:
-        details = [f"**Last entry:** {latest['date'].strftime('%d %b %Y')}"]
-        details.append(f"Value: {format_currency(latest['current_value'], currency)}")
+        details = [f"**Last entry:** {latest.date.strftime('%d %b %Y')}"]
+        details.append(f"Value: {format_currency(latest.current_value, product.currency)}")
 
-        if latest.get('units'):
-            details.append(f"Units: {latest['units']:,.4f}")
-        if latest.get('unit_value'):
-            details.append(f"Unit value: {format_currency(latest['unit_value'], currency)}")
+        if latest.units is not None:
+            details.append(f"Units: {latest.units:,.4f}")
+        if latest.unit_value is not None:
+            details.append(f"Unit value: {format_currency(latest.unit_value, product.currency)}")
 
         st.info(' — '.join(details))
     else:
@@ -88,12 +84,11 @@ def render_delta_indicator(
             st.info(f'Change: {delta_str}')
 
 
-def render_batch_table(product_name: str, currency: str, latest_valuation: Optional[dict]) -> None:
+def render_batch_table(product: FinancialProduct, latest_valuation: Optional[ProductValue]) -> None:
     """
     Renders the batch entry table showing entries to be submitted.
 
-    :param product_name: Name of the selected financial product.
-    :param currency: Currency code of the product.
+    :param product: The selected FinancialProduct model.
     :param latest_valuation: The latest valuation from the database.
     """
     batch = st.session_state.valuation_batch
@@ -104,14 +99,14 @@ def render_batch_table(product_name: str, currency: str, latest_valuation: Optio
     st.subheader('Pending Entries')
 
     # Filter batch for current product
-    product_batch = [e for e in batch if e['financial_product_name'] == product_name]
+    product_batch = [e for e in batch if e['product_id'] == product.id]
 
     if not product_batch:
         st.caption('No pending entries for this product.')
         return
 
     # Display batch entries with deltas
-    previous_value = latest_valuation['current_value'] if latest_valuation else None
+    previous_value = latest_valuation.current_value if latest_valuation else None
 
     for i, entry in enumerate(product_batch):
         col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 1])
@@ -120,7 +115,7 @@ def render_batch_table(product_name: str, currency: str, latest_valuation: Optio
             st.text(entry['date'].strftime('%d %b %Y'))
 
         with col2:
-            st.text(format_currency(entry['current_value'], currency))
+            st.text(format_currency(entry['current_value'], product.currency))
 
         with col3:
             units_str = f"{entry['units']:,.4f}" if entry.get('units') else '-'
@@ -134,7 +129,7 @@ def render_batch_table(product_name: str, currency: str, latest_valuation: Optio
             if st.button('🗑️', key=f'remove_valuation_{i}', help='Remove entry'):
                 st.session_state.valuation_batch = [
                     e for e in batch
-                    if not (e['financial_product_name'] == product_name and
+                    if not (e['product_id'] == product.id and
                             e['date'] == entry['date'] and
                             e['current_value'] == entry['current_value'])
                 ]
@@ -144,7 +139,7 @@ def render_batch_table(product_name: str, currency: str, latest_valuation: Optio
 
 
 def add_to_batch(
-    product_name: str,
+    product: FinancialProduct,
     entry_date: date,
     current_value: Decimal,
     units: Optional[Decimal],
@@ -153,14 +148,14 @@ def add_to_batch(
     """
     Adds a new entry to the valuation batch.
 
-    :param product_name: Name of the financial product.
+    :param product: The FinancialProduct model.
     :param entry_date: Date of the valuation entry.
     :param current_value: Total current value of the holding.
     :param units: Optional number of units held.
     :param unit_value: Optional value per unit.
     """
     st.session_state.valuation_batch.append({
-        'financial_product_name': product_name,
+        'product_id': product.id,
         'date': entry_date,
         'current_value': current_value,
         'units': units,
@@ -168,38 +163,51 @@ def add_to_batch(
     })
 
 
-def clear_batch(product_name: Optional[str] = None) -> None:
+def clear_batch(product_id: Optional[int] = None) -> None:
     """
     Clears the valuation batch, optionally for a specific product only.
 
-    :param product_name: If provided, only clears entries for this product.
+    :param product_id: If provided, only clears entries for this product.
     """
-    if product_name:
+    if product_id is not None:
         st.session_state.valuation_batch = [
             e for e in st.session_state.valuation_batch
-            if e['financial_product_name'] != product_name
+            if e['product_id'] != product_id
         ]
     else:
         st.session_state.valuation_batch = []
 
 
-def submit_batch(product_name: str) -> bool:
+def submit_batch(product: FinancialProduct) -> bool:
     """
     Submits the batch entries for a specific product to the database.
 
-    :param product_name: Name of the product to submit entries for.
+    :param product: The FinancialProduct model to submit entries for.
     :return: True if submission was successful, False otherwise.
     """
     batch = [e for e in st.session_state.valuation_batch
-             if e['financial_product_name'] == product_name]
+             if e['product_id'] == product.id]
 
     if not batch:
         return False
 
     try:
-        count = insert_valuations(get_db(), batch)
-        clear_batch(product_name)
-        st.success(f'Successfully added {count} valuation entries.')
+        with get_session() as session:
+            repo = ProductValueRepository(session)
+            valuations = [
+                ProductValue(
+                    product_id=e['product_id'],
+                    date=e['date'],
+                    current_value=e['current_value'],
+                    units=e['units'],
+                    unit_value=e['unit_value']
+                ) for e in batch
+            ]
+            repo.create_many(valuations)
+            session.commit()
+            
+        clear_batch(product.id)
+        st.success(f'Successfully added {len(batch)} valuation entries.')
         return True
     except Exception as e:
         st.error(f'Failed to submit entries: {e}')
@@ -220,7 +228,8 @@ def render_valuation_entry_page() -> None:
     st.title('Add Product Valuation')
 
     # Fetch financial products for dropdown
-    products = list_financial_products(get_db())
+    with get_session() as session:
+        products = ProductRepository(session).get_active()
 
     if not products:
         st.warning('No financial products found. Please create a product first.')
@@ -230,21 +239,21 @@ def render_valuation_entry_page() -> None:
         return
 
     # Create product lookup
-    product_map = {prod['name']: prod for prod in products}
+    product_map = {prod.name: prod for prod in products}
     product_names = get_entity_names(products)
 
     # Product selection
-    selected_product = st.selectbox(
+    selected_product_name = st.selectbox(
         'Select Financial Product',
         options=product_names,
         help='Choose the financial product to add a valuation entry for.'
     )
 
-    if not selected_product:
+    if not selected_product_name:
         return
 
-    product = product_map[selected_product]
-    currency = product.get('currency', '')
+    product = product_map[selected_product_name]
+    currency = product.currency or ''
 
     # Show shortcut to create new product
     with st.expander('Product not listed?'):
@@ -255,7 +264,7 @@ def render_valuation_entry_page() -> None:
     st.divider()
 
     # Last entry preview
-    latest_valuation = render_last_entry_preview(selected_product, currency)
+    latest_valuation = render_last_entry_preview(product)
 
     st.divider()
 
@@ -323,11 +332,11 @@ def render_valuation_entry_page() -> None:
     if current_value is not None:
         # Determine previous value (from batch or database)
         product_batch = [e for e in st.session_state.valuation_batch
-                         if e['financial_product_name'] == selected_product]
+                         if e['product_id'] == product.id]
         if product_batch:
             previous_value = product_batch[-1]['current_value']
         elif latest_valuation:
-            previous_value = latest_valuation['current_value']
+            previous_value = latest_valuation.current_value
         else:
             previous_value = None
 
@@ -341,21 +350,21 @@ def render_valuation_entry_page() -> None:
     with col_add:
         add_disabled = current_value is None
         if st.button('Add to Batch', disabled=add_disabled, use_container_width=True):
-            add_to_batch(selected_product, entry_date, current_value, units_value, unit_value)
+            add_to_batch(product, entry_date, current_value, units_value, unit_value)
             st.rerun()
 
     with col_submit:
         product_batch = [e for e in st.session_state.valuation_batch
-                         if e['financial_product_name'] == selected_product]
+                         if e['product_id'] == product.id]
         submit_disabled = len(product_batch) == 0
         if st.button('Submit All', disabled=submit_disabled, type='primary', use_container_width=True):
-            submit_batch(selected_product)
+            submit_batch(product)
             st.rerun()
 
     with col_clear:
         if st.button('Clear Batch', use_container_width=True):
-            clear_batch(selected_product)
+            clear_batch(product.id)
             st.rerun()
 
     # Render batch table
-    render_batch_table(selected_product, currency, latest_valuation)
+    render_batch_table(product, latest_valuation)

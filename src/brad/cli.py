@@ -168,5 +168,38 @@ def restore(backup_path: Path) -> None:
     click.echo("[OK] Database restored.")
 
 
+@cli.command()
+@click.option(
+    "--port",
+    type=int,
+    default=8501,
+    help="Port to run the Streamlit server on",
+)
+def frontend(port: int) -> None:
+    """Launch the Streamlit frontend application."""
+    import subprocess
+    import sys
+
+    frontend_app_path = Path(__file__).parent / "frontend" / "app.py"
+    cmd = [
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        str(frontend_app_path),
+        "--server.port",
+        str(port),
+    ]
+
+    click.echo(f"Launching frontend on port {port}...")
+    try:
+        # We merge env variables to keep PATH intact as per AGENTS.md Gotchas!
+        import os
+        env = {**os.environ}
+        subprocess.run(cmd, env=env)
+    except KeyboardInterrupt:
+        click.echo("\n✓ Frontend stopped.")
+
+
 if __name__ == "__main__":
     cli()

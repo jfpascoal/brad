@@ -12,12 +12,10 @@ from typing import Optional
 
 import streamlit as st
 
-from brad.sql import (
-    DatabaseManager,
-    list_accounts,
-    get_latest_balance,
-    insert_balances,
-)
+import contextlib
+
+from brad.core.models.operational import Account, AccountBalance
+from brad.repositories.accounts import AccountRepository, AccountBalanceRepository
 from brad.frontend.utils import (
     format_currency,
     format_delta,
@@ -26,29 +24,28 @@ from brad.frontend.utils import (
 )
 
 
-def get_db() -> DatabaseManager:
-    """
-    Retrieves the DatabaseManager from session state.
-
-    :return: DatabaseManager instance.
-    """
-    return st.session_state.db
+@contextlib.contextmanager
+def get_session():
+    """Provides a transactional scope around a series of operations."""
+    with st.session_state.session_factory() as session:
+        yield session
 
 
-def render_last_entry_preview(account_name: str, currency: str) -> Optional[dict]:
+def render_last_entry_preview(account: Account) -> Optional[AccountBalance]:
     """
     Renders the preview of the most recent balance entry for an account.
 
-    :param account_name: Name of the selected account.
-    :param currency: Currency code of the account.
-    :return: The latest balance entry dict, or None if no entries exist.
+    :param account: The selected Account model.
+    :return: The latest AccountBalance model, or None if no entries exist.
     """
-    latest = get_latest_balance(get_db(), account_name)
+    with get_session() as session:
+        repo = AccountBalanceRepository(session)
+        latest = repo.get_latest(account.id)
 
     if latest:
         st.info(
-            f"**Last entry:** {latest['date'].strftime('%d %b %Y')} — "
-            f"{format_currency(latest['balance'], currency)}"
+            f"**Last entry:** {latest.date.strftime('%d %b %Y')} — "
+            f"{format_currency(latest.balance, account.currency)}"
         )
     else:
         st.info('No previous entries for this account.')
@@ -83,12 +80,11 @@ def render_delta_indicator(
             st.info(f'Change: {delta_str}')
 
 
-def render_batch_table(account_name: str, currency: str, latest_balance: Optional[dict]) -> None:
+def render_batch_table(account: Account, latest_balance: Optional[AccountBalance]) -> None:
     """
     Renders the batch entry table showing entries to be submitted.
 
-    :param account_name: Name of the selected account.
-    :param currency: Currency code of the account.
+    :param account: The selected Account model.
     :param latest_balance: The latest balance from the database.
     """
     batch = st.session_state.balance_batch
@@ -99,14 +95,14 @@ def render_batch_table(account_name: str, currency: str, latest_balance: Optiona
     st.subheader('Pending Entries')
 
     # Filter batch for current account
-    account_batch = [e for e in batch if e['account_name'] == account_name]
+    account_batch = [e for e in batch if e['account_id'] == account.id]
 
     if not account_batch:
         st.caption('No pending entries for this account.')
         return
 
     # Display batch entries with deltas
-    previous_value = latest_balance['balance'] if latest_balance else None
+    previous_value = latest_balance.balance if latest_balance else None
 
     for i, entry in enumerate(account_batch):
         col1, col2, col3, col4 = st.columns([2, 2, 3, 1])
@@ -115,7 +111,7 @@ def render_batch_table(account_name: str, currency: str, latest_balance: Optiona
             st.text(entry['date'].strftime('%d %b %Y'))
 
         with col2:
-            st.text(format_currency(entry['balance'], currency))
+            st.text(format_currency(entry['balance'], account.currency))
 
         with col3:
             delta = calculate_delta(entry['balance'], previous_value)
@@ -125,7 +121,7 @@ def render_batch_table(account_name: str, currency: str, latest_balance: Optiona
             if st.button('🗑️', key=f'remove_balance_{i}', help='Remove entry'):
                 st.session_state.balance_batch = [
                     e for j, e in enumerate(batch)
-                    if not (e['account_name'] == account_name and
+                    if not (e['account_id'] == account.id and
                             batch.index(e) == batch.index(entry))
                 ]
                 st.rerun()
@@ -133,52 +129,60 @@ def render_batch_table(account_name: str, currency: str, latest_balance: Optiona
         previous_value = entry['balance']
 
 
-def add_to_batch(account_name: str, entry_date: date, balance: Decimal) -> None:
+def add_to_batch(account: Account, entry_date: date, balance: Decimal) -> None:
     """
     Adds a new entry to the balance batch.
 
-    :param account_name: Name of the account.
+    :param account: The Account model.
     :param entry_date: Date of the balance entry.
     :param balance: Balance amount.
     """
     st.session_state.balance_batch.append({
-        'account_name': account_name,
+        'account_id': account.id,
         'date': entry_date,
         'balance': balance
     })
 
 
-def clear_batch(account_name: Optional[str] = None) -> None:
+def clear_batch(account_id: Optional[int] = None) -> None:
     """
     Clears the balance batch, optionally for a specific account only.
 
-    :param account_name: If provided, only clears entries for this account.
+    :param account_id: If provided, only clears entries for this account.
     """
-    if account_name:
+    if account_id is not None:
         st.session_state.balance_batch = [
             e for e in st.session_state.balance_batch
-            if e['account_name'] != account_name
+            if e['account_id'] != account_id
         ]
     else:
         st.session_state.balance_batch = []
 
 
-def submit_batch(account_name: str) -> bool:
+def submit_batch(account: Account) -> bool:
     """
     Submits the batch entries for a specific account to the database.
 
-    :param account_name: Name of the account to submit entries for.
+    :param account: The Account model to submit entries for.
     :return: True if submission was successful, False otherwise.
     """
-    batch = [e for e in st.session_state.balance_batch if e['account_name'] == account_name]
+    batch = [e for e in st.session_state.balance_batch if e['account_id'] == account.id]
 
     if not batch:
         return False
 
     try:
-        count = insert_balances(get_db(), batch)
-        clear_batch(account_name)
-        st.success(f'Successfully added {count} balance entries.')
+        with get_session() as session:
+            repo = AccountBalanceRepository(session)
+            balances = [
+                AccountBalance(account_id=e['account_id'], date=e['date'], balance=e['balance'])
+                for e in batch
+            ]
+            repo.create_many(balances)
+            session.commit()
+            
+        clear_batch(account.id)
+        st.success(f'Successfully added {len(batch)} balance entries.')
         return True
     except Exception as e:
         st.error(f'Failed to submit entries: {e}')
@@ -199,7 +203,8 @@ def render_balance_entry_page() -> None:
     st.title('Add Account Balance')
 
     # Fetch accounts for dropdown
-    accounts = list_accounts(get_db())
+    with get_session() as session:
+        accounts = AccountRepository(session).get_active()
 
     if not accounts:
         st.warning('No accounts found. Please create an account first.')
@@ -209,21 +214,21 @@ def render_balance_entry_page() -> None:
         return
 
     # Create account lookup
-    account_map = {acc['name']: acc for acc in accounts}
+    account_map = {acc.name: acc for acc in accounts}
     account_names = get_entity_names(accounts)
 
     # Account selection
-    selected_account = st.selectbox(
+    selected_account_name = st.selectbox(
         'Select Account',
         options=account_names,
         help='Choose the account to add a balance entry for.'
     )
 
-    if not selected_account:
+    if not selected_account_name:
         return
 
-    account = account_map[selected_account]
-    currency = account.get('currency', '')
+    account = account_map[selected_account_name]
+    currency = account.currency or ''
 
     # Show shortcut to create new account
     with st.expander('Account not listed?'):
@@ -235,7 +240,7 @@ def render_balance_entry_page() -> None:
     st.divider()
 
     # Last entry preview
-    latest_balance = render_last_entry_preview(selected_account, currency)
+    latest_balance = render_last_entry_preview(account)
 
     st.divider()
 
@@ -271,11 +276,11 @@ def render_balance_entry_page() -> None:
     if balance_value is not None:
         # Determine previous value (from batch or database)
         account_batch = [e for e in st.session_state.balance_batch
-                         if e['account_name'] == selected_account]
+                         if e['account_id'] == account.id]
         if account_batch:
             previous_value = account_batch[-1]['balance']
         elif latest_balance:
-            previous_value = latest_balance['balance']
+            previous_value = latest_balance.balance
         else:
             previous_value = None
 
@@ -289,21 +294,21 @@ def render_balance_entry_page() -> None:
     with col_add:
         add_disabled = balance_value is None
         if st.button('Add to Batch', disabled=add_disabled, use_container_width=True):
-            add_to_batch(selected_account, entry_date, balance_value)
+            add_to_batch(account, entry_date, balance_value)
             st.rerun()
 
     with col_submit:
         account_batch = [e for e in st.session_state.balance_batch
-                         if e['account_name'] == selected_account]
+                         if e['account_id'] == account.id]
         submit_disabled = len(account_batch) == 0
         if st.button('Submit All', disabled=submit_disabled, type='primary', use_container_width=True):
-            submit_batch(selected_account)
+            submit_batch(account)
             st.rerun()
 
     with col_clear:
         if st.button('Clear Batch', use_container_width=True):
-            clear_batch(selected_account)
+            clear_batch(account.id)
             st.rerun()
 
     # Render batch table
-    render_batch_table(selected_account, currency, latest_balance)
+    render_batch_table(account, latest_balance)

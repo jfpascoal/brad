@@ -11,9 +11,9 @@ The Brad frontend is the interface between the user and the backend services. It
 layer (`brad.sql`) to allow the manual input of financial data through the use of forms and interactive components.
 
 #### 3. Design guidelines
-- The frontend should make use of the existing data services API (`brad.sql`). No direct database access should be 
+- The frontend should make use of the existing data services API (`brad.repositories` and `brad.core.db`). No direct database access should be 
 implemented in the frontend module. If extra functionality is needed (missing common access patterns), it should be 
-added to the data services layer.
+added to the repository layer.
 - The frontend should be initialized through the main application entry point (`brad/main.py`) and should adhere to the 
 overall application architecture (no direct subprocess calls if avoidable).
 - The frontend should be built in Python using streamlit, under `brad.frontend`.
@@ -58,7 +58,7 @@ should be handled on dedicated pages, separate from the data entry forms, to mai
 - **Form submission and validation**: The user must be provided with a button to submit the input data. The module should
 validate the input data before updating the database. If any errors are found, the submission should be rejected with 
 an informative error message. If successful, a confirmation message should be displayed.
-- **Data persistence**: Upon successful validation, the input data must be persisted to the database using the data services API.
+- **Data persistence**: Upon successful validation, the input data must be persisted to the database under a single SQLAlchemy transaction to guarantee atomic batch inserts.
 - **Error handling**: The frontend should gracefully handle any errors that occur during data submission or processing, providing clear feedback to the user.
 
 ##### 4.4 Application control
@@ -66,13 +66,11 @@ an informative error message. If successful, a confirmation message should be di
 A confirmation dialog must be displayed before terminating the server to prevent accidental exits.
 
 #### 5. Data layer requirements
-The data services layer (`brad.sql`) must be extended to support the frontend with the following capabilities:
-- **Fetch latest balance**: Retrieve the most recent balance entry for a given account, returning date and value.
-- **Fetch latest valuation**: Retrieve the most recent valuation entry for a given financial product, returning date, 
-quantity, and unit value.
-- **List entities**: Provide methods to list all accounts, financial products, providers, and holders for dropdown population.
-- **Insert balance**: Insert a new balance entry for an account.
-- **Insert valuation**: Insert a new valuation entry for a financial product.
+The data repositories layer (`brad.repositories`) and core models provide the frontend with the following capabilities:
+- **Fetch latest balance**: Retrieve the most recent balance entry for a given account.
+- **Fetch latest valuation**: Retrieve the most recent valuation entry for a given financial product.
+- **List entities**: Provide methods to list all accounts, financial products, providers, and holders.
+- **Insert operations**: Insert batch array of balance and valuation entries using SQLAlchemy sessions.
 - **Insert entity**: Insert new accounts, financial products, providers, or holders.
 
 #### 6. Implementation details
@@ -87,12 +85,10 @@ The frontend is implemented under `brad.frontend` with the following structure:
   - `entity_management.py`: Entity management page with tabs for providers, holders, accounts, and products.
 
 ##### 6.2 Data layer extensions
-The `brad.sql.queries` module provides the frontend API with the following functions:
-- Entity listing: `list_accounts()`, `list_financial_products()`, `list_providers()`, `list_holders()`, 
-  `list_account_types()`, `list_financial_product_types()`
-- Latest entry retrieval: `get_latest_balance()`, `get_latest_valuation()`
-- Insert operations: `insert_balance()`, `insert_balances()`, `insert_valuation()`, `insert_valuations()`,
-  `insert_provider()`, `insert_holder()`, `insert_account()`, `insert_financial_product()`
+The `brad.repositories` module provides the frontend API with access to:
+- Entity listing: Accounts, Financial Products, Providers, Holders, Types mapping via respective repositories.
+- Latest entry retrieval: Latest balances and valuations.
+- Insert operations: Native SQLAlchemy model commits executed within the Streamlit session factory scope.
 
 ##### 6.3 Frontend utilities
 The `brad.frontend.utils` module provides helper functions:
@@ -103,14 +99,14 @@ The `brad.frontend.utils` module provides helper functions:
 
 ##### 6.4 Session state
 Streamlit session state is used to maintain:
-- `db`: DatabaseManager instance (initialised once per session).
+- `session_factory`: SQLAlchemy `sessionmaker` injected from `brad.core.db.get_session_factory()`.
 - `balance_batch`: List of pending balance entries before submission.
 - `valuation_batch`: List of pending valuation entries before submission.
 
 ##### 6.5 Running the frontend
 The frontend is launched via the main CLI:
 ```bash
-python -m brad.main frontend [--port PORT]
+brad frontend [--port PORT]
 ```
 This spawns a Streamlit server running the frontend application.
 

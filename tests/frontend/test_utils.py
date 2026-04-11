@@ -81,14 +81,19 @@ class TestFormatDelta(unittest.TestCase):
         self.assertEqual('N/A (first entry)', result)
 
 
+class MockEntity:
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
 class TestGetEntityNames(unittest.TestCase):
     """Tests for the get_entity_names function."""
 
     def test_get_entity_names_default_field(self):
         """Test extracting names with default 'name' field."""
         entities = [
-            {'id': 1, 'name': 'Entity A', 'type': 'foo'},
-            {'id': 2, 'name': 'Entity B', 'type': 'bar'},
+            MockEntity(id=1, name='Entity A', type='foo'),
+            MockEntity(id=2, name='Entity B', type='bar'),
         ]
         result = get_entity_names(entities)
         self.assertEqual(['Entity A', 'Entity B'], result)
@@ -96,8 +101,8 @@ class TestGetEntityNames(unittest.TestCase):
     def test_get_entity_names_custom_field(self):
         """Test extracting names with custom field."""
         entities = [
-            {'id': 1, 'title': 'Title A'},
-            {'id': 2, 'title': 'Title B'},
+            MockEntity(id=1, title='Title A'),
+            MockEntity(id=2, title='Title B'),
         ]
         result = get_entity_names(entities, name_field='title')
         self.assertEqual(['Title A', 'Title B'], result)
@@ -113,19 +118,18 @@ class TestCreateEntityMap(unittest.TestCase):
 
     def test_create_entity_map_full_entity(self):
         """Test creating map with full entity as value."""
-        entities = [
-            {'id': 1, 'name': 'Entity A', 'type': 'foo'},
-            {'id': 2, 'name': 'Entity B', 'type': 'bar'},
-        ]
+        e1 = MockEntity(id=1, name='Entity A', type='foo')
+        e2 = MockEntity(id=2, name='Entity B', type='bar')
+        entities = [e1, e2]
         result = create_entity_map(entities)
-        self.assertEqual({'id': 1, 'name': 'Entity A', 'type': 'foo'}, result['Entity A'])
-        self.assertEqual({'id': 2, 'name': 'Entity B', 'type': 'bar'}, result['Entity B'])
+        self.assertEqual(e1, result['Entity A'])
+        self.assertEqual(e2, result['Entity B'])
 
     def test_create_entity_map_specific_value(self):
         """Test creating map with specific field as value."""
         entities = [
-            {'id': 1, 'name': 'Entity A', 'type': 'foo'},
-            {'id': 2, 'name': 'Entity B', 'type': 'bar'},
+            MockEntity(id=1, name='Entity A', type='foo'),
+            MockEntity(id=2, name='Entity B', type='bar'),
         ]
         result = create_entity_map(entities, value_field='id')
         self.assertEqual(1, result['Entity A'])
@@ -134,8 +138,8 @@ class TestCreateEntityMap(unittest.TestCase):
     def test_create_entity_map_custom_key(self):
         """Test creating map with custom key field."""
         entities = [
-            {'id': 1, 'code': 'A', 'name': 'Entity A'},
-            {'id': 2, 'code': 'B', 'name': 'Entity B'},
+            MockEntity(id=1, code='A', name='Entity A'),
+            MockEntity(id=2, code='B', name='Entity B'),
         ]
         result = create_entity_map(entities, key_field='code', value_field='name')
         self.assertEqual('Entity A', result['A'])

@@ -6,7 +6,7 @@ including delta calculation display, formatting, and data transformation.
 """
 
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 
 def format_currency(value: Decimal, currency: str = '') -> str:
@@ -45,33 +45,33 @@ def format_delta(absolute: Optional[Decimal], percentage: Optional[Decimal]) -> 
     return abs_str
 
 
-def get_entity_names(entities: List[Dict[str, Any]], name_field: str = 'name') -> List[str]:
+def get_entity_names(entities: Sequence[Any], name_field: str = 'name') -> List[str]:
     """
-    Extracts a list of names from entity dictionaries.
+    Extracts a list of names from a sequence of SQLAlchemy models.
 
-    :param entities: List of entity dictionaries.
-    :param name_field: The field name containing the entity name (default: 'name').
+    :param entities: Sequence of SQLAlchemy models.
+    :param name_field: The attribute name containing the entity name (default: 'name').
     :return: List of entity names as strings.
     """
-    return [entity[name_field] for entity in entities]
+    return [getattr(entity, name_field) for entity in entities]
 
 
 def create_entity_map(
-    entities: List[Dict[str, Any]],
+    entities: Sequence[Any],
     key_field: str = 'name',
     value_field: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Creates a mapping from entity names to full entity data or a specific field.
+    Creates a mapping from entity attributes to full entity models or a specific field.
 
-    :param entities: List of entity dictionaries.
-    :param key_field: Field to use as the dictionary key (default: 'name').
-    :param value_field: Optional field to use as value; if None, entire entity is used.
-    :return: Dictionary mapping keys to values or full entity dictionaries.
+    :param entities: Sequence of SQLAlchemy models.
+    :param key_field: Attribute to use as the dictionary key (default: 'name').
+    :param value_field: Optional attribute to use as value; if None, entire model is used.
+    :return: Dictionary mapping keys to values or full entity models.
     """
     if value_field:
-        return {entity[key_field]: entity[value_field] for entity in entities}
-    return {entity[key_field]: entity for entity in entities}
+        return {getattr(entity, key_field): getattr(entity, value_field) for entity in entities}
+    return {getattr(entity, key_field): entity for entity in entities}
 
 
 def validate_required_fields(data: Dict[str, Any], required_fields: List[str]) -> List[str]:

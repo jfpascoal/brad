@@ -12,9 +12,9 @@ description = ""
 requires-python = ">=3.9"
 license = "MIT"
 dependencies = [
-    "psycopg[binary]~=3.3",
-    "pandas~=2.3",
-    "odfpy~=1.4",
+    "psycopg[binary]",
+    "pandas",
+    "odfpy",
     "pyyaml>=6.0",
     "sqlalchemy>=2.0",
     "pydantic>=2.0",

@@ -8,32 +8,23 @@ accounts, and financial products.
 
 from datetime import date
 from typing import List, Optional
+import contextlib
 
 import streamlit as st
 
-from brad.sql import (
-    DatabaseManager,
-    list_providers,
-    list_holders,
-    list_accounts,
-    list_financial_products,
-    list_account_types,
-    list_financial_product_types,
-    insert_provider,
-    insert_holder,
-    insert_account,
-    insert_financial_product,
-)
+from brad.core.models.reference import Provider, Holder, AccountType, ProductType
+from brad.core.models.operational import Account, FinancialProduct
+from brad.repositories.base import BaseRepository
+from brad.repositories.accounts import AccountRepository
+from brad.repositories.products import ProductRepository
 from brad.frontend.utils import get_entity_names
 
 
-def get_db() -> DatabaseManager:
-    """
-    Retrieves the DatabaseManager from session state.
-
-    :return: DatabaseManager instance.
-    """
-    return st.session_state.db
+@contextlib.contextmanager
+def get_session():
+    """Provides a transactional scope around a series of operations."""
+    with st.session_state.session_factory() as session:
+        yield session
 
 
 # =============================================================================
@@ -69,7 +60,10 @@ def render_provider_form() -> None:
                 st.error('Country code must be exactly 2 characters.')
             else:
                 try:
-                    insert_provider(get_db(), name=name, country_iso_alpha2=country.upper())
+                    with get_session() as session:
+                        repo = BaseRepository(session, Provider)
+                        repo.create(Provider(name=name, country_iso_alpha2=country.upper()))
+                        session.commit()
                     st.success(f'Provider "{name}" created successfully.')
                 except Exception as e:
                     st.error(f'Failed to create provider: {e}')
@@ -79,12 +73,13 @@ def render_providers_list() -> None:
     """
     Renders the list of existing providers.
     """
-    providers = list_providers(get_db())
+    with get_session() as session:
+        providers = BaseRepository(session, Provider).list_all()
 
     if providers:
         st.caption(f'{len(providers)} provider(s)')
         for provider in providers:
-            st.text(f"• {provider['name']} ({provider['country_iso_alpha2']})")
+            st.text(f"• {provider.name} ({provider.country_iso_alpha2})")
     else:
         st.caption('No providers found.')
 
@@ -119,11 +114,13 @@ def render_holder_form() -> None:
                 st.error('Please enter a holder name.')
             else:
                 try:
-                    insert_holder(
-                        get_db(),
-                        name=name,
-                        tax_bracket=tax_bracket if tax_bracket else None
-                    )
+                    with get_session() as session:
+                        repo = BaseRepository(session, Holder)
+                        repo.create(Holder(
+                            name=name,
+                            tax_bracket=tax_bracket if tax_bracket else None
+                        ))
+                        session.commit()
                     st.success(f'Holder "{name}" created successfully.')
                 except Exception as e:
                     st.error(f'Failed to create holder: {e}')
@@ -133,13 +130,14 @@ def render_holders_list() -> None:
     """
     Renders the list of existing holders.
     """
-    holders = list_holders(get_db())
+    with get_session() as session:
+        holders = BaseRepository(session, Holder).list_all()
 
     if holders:
         st.caption(f'{len(holders)} holder(s)')
         for holder in holders:
-            tax_info = f" - {holder['tax_bracket']}" if holder.get('tax_bracket') else ''
-            st.text(f"• {holder['name']}{tax_info}")
+            tax_info = f" - {holder.tax_bracket}" if holder.tax_bracket else ''
+            st.text(f"• {holder.name}{tax_info}")
     else:
         st.caption('No holders found.')
 
@@ -154,10 +152,10 @@ def render_account_form() -> None:
     """
     st.subheader('Add New Account')
 
-    # Fetch options for dropdowns
-    providers = list_providers(get_db())
-    holders = list_holders(get_db())
-    account_types = list_account_types(get_db())
+    with get_session() as session:
+        providers = BaseRepository(session, Provider).list_all()
+        holders = BaseRepository(session, Holder).list_all()
+        account_types = BaseRepository(session, AccountType).list_all()
 
     if not providers:
         st.warning('Please create a provider first before adding an account.')
@@ -169,7 +167,7 @@ def render_account_form() -> None:
 
     provider_names = get_entity_names(providers)
     holder_names = get_entity_names(holders)
-    type_names = [t['name'] for t in account_types if t['name'] != 'Unknown']
+    type_names = [t.name for t in account_types if t.name != 'Unknown']
 
     with st.form('account_form', clear_on_submit=True):
         col1, col2 = st.columns(2)
@@ -251,23 +249,38 @@ def render_account_form() -> None:
                 st.error('Currency code must be exactly 3 characters.')
             else:
                 try:
-                    insert_account(
-                        get_db(),
-                        name=name,
-                        account_type=account_type,
-                        currency=currency.upper(),
-                        provider_name=provider,
-                        holder_name_1=holder_1,
-                        holder_name_2=holder_2 if holder_2 else None,
-                        holder_name_3=holder_3 if holder_3 else None,
-                        account_number=account_number if account_number else None,
-                        sort_code=sort_code if sort_code else None,
-                        iban=iban if iban else None,
-                        swift_code=swift_code if swift_code else None,
-                        opening_date=opening_date,
-                        closing_date=closing_date,
-                        is_active=is_active
-                    )
+                    with get_session() as session:
+                        # Convert selected names back to IDs
+                        provider_rc = BaseRepository(session, Provider).get_by_name(provider)
+                        type_rc = BaseRepository(session, AccountType).get_by_name(account_type)
+                        
+                        holder_res = BaseRepository(session, Holder)
+                        h_ids = []
+                        for h_name in [holder_1, holder_2, holder_3]:
+                            if h_name:
+                                h_ids.append(holder_res.get_by_name(h_name).id)
+                        
+                        acc = Account(
+                            name=name,
+                            account_type_id=type_rc.id,
+                            currency=currency.upper(),
+                            provider_id=provider_rc.id,
+                            account_number=account_number if account_number else None,
+                            sort_code=sort_code if sort_code else None,
+                            iban=iban if iban else None,
+                            swift_code=swift_code if swift_code else None,
+                            opening_date=opening_date,
+                            closing_date=closing_date,
+                            is_active=is_active
+                        )
+                        
+                        repo = AccountRepository(session)
+                        repo.create(acc)
+                        session.flush() # ensure ID is generated
+                        
+                        repo.set_holders(acc, h_ids)
+                        session.commit()
+                        
                     st.success(f'Account "{name}" created successfully.')
                 except Exception as e:
                     st.error(f'Failed to create account: {e}')
@@ -277,13 +290,18 @@ def render_accounts_list() -> None:
     """
     Renders the list of existing accounts.
     """
-    accounts = list_accounts(get_db(), active_only=False)
+    with get_session() as session:
+        accounts = AccountRepository(session).list_all()
 
     if accounts:
         st.caption(f'{len(accounts)} account(s)')
         for account in accounts:
-            status = '✓' if account.get('is_active') else '✗'
-            st.text(f"{status} {account['name']} ({account['account_type']}, {account['currency']})")
+            status = '✓' if account.is_active else '✗'
+            # Need a session to lazy-load related attributes like account.type_link.name
+            with get_session() as session:
+                acc = session.merge(account)
+                type_name = acc.type_link.name if acc.type_link else 'Unknown'
+            st.text(f"{status} {account.name} ({type_name}, {account.currency})")
     else:
         st.caption('No accounts found.')
 
@@ -298,11 +316,11 @@ def render_financial_product_form() -> None:
     """
     st.subheader('Add New Financial Product')
 
-    # Fetch options for dropdowns
-    providers = list_providers(get_db())
-    holders = list_holders(get_db())
-    accounts = list_accounts(get_db())
-    product_types = list_financial_product_types(get_db())
+    with get_session() as session:
+        providers = BaseRepository(session, Provider).list_all()
+        holders = BaseRepository(session, Holder).list_all()
+        accounts = BaseRepository(session, Account).list_all()
+        product_types = BaseRepository(session, ProductType).list_all()
 
     if not providers:
         st.warning('Please create a provider first before adding a financial product.')
@@ -315,7 +333,7 @@ def render_financial_product_form() -> None:
     provider_names = get_entity_names(providers)
     holder_names = get_entity_names(holders)
     account_names = [''] + get_entity_names(accounts)
-    type_names = [t['name'] for t in product_types if t['name'] != 'Unknown']
+    type_names = [t.name for t in product_types if t.name != 'Unknown']
 
     with st.form('product_form', clear_on_submit=True):
         col1, col2 = st.columns(2)
@@ -382,18 +400,35 @@ def render_financial_product_form() -> None:
                 st.error('Currency code must be exactly 3 characters.')
             else:
                 try:
-                    insert_financial_product(
-                        get_db(),
-                        name=name,
-                        financial_product_type=product_type,
-                        currency=currency.upper(),
-                        provider_name=provider,
-                        holder_name=holder,
-                        linked_account_name=linked_account if linked_account else None,
-                        ticker=ticker if ticker else None,
-                        isin=isin if isin else None,
-                        is_active=is_active
-                    )
+                    with get_session() as session:
+                        provider_rc = BaseRepository(session, Provider).get_by_name(provider)
+                        type_rc = BaseRepository(session, ProductType).get_by_name(product_type)
+                        holder_rc = BaseRepository(session, Holder).get_by_name(holder)
+                        
+                        account_id = None
+                        if linked_account:
+                            account_rc = BaseRepository(session, Account).get_by_name(linked_account)
+                            if account_rc:
+                                account_id = account_rc.id
+
+                        prod = FinancialProduct(
+                            name=name,
+                            product_type_id=type_rc.id,
+                            currency=currency.upper(),
+                            provider_id=provider_rc.id,
+                            linked_account_id=account_id,
+                            ticker=ticker if ticker else None,
+                            isin=isin if isin else None,
+                            is_active=is_active
+                        )
+                        
+                        repo = ProductRepository(session)
+                        repo.create(prod)
+                        session.flush()
+
+                        repo.set_holders(prod, [holder_rc.id])
+                        session.commit()
+                        
                     st.success(f'Financial product "{name}" created successfully.')
                 except Exception as e:
                     st.error(f'Failed to create financial product: {e}')
@@ -403,14 +438,20 @@ def render_financial_products_list() -> None:
     """
     Renders the list of existing financial products.
     """
-    products = list_financial_products(get_db(), active_only=False)
+    with get_session() as session:
+        products = ProductRepository(session).list_all()
 
     if products:
         st.caption(f'{len(products)} product(s)')
         for product in products:
-            status = '✓' if product.get('is_active') else '✗'
-            ticker_info = f" [{product['ticker']}]" if product.get('ticker') else ''
-            st.text(f"{status} {product['name']}{ticker_info} ({product['financial_product_type']})")
+            status = '✓' if product.is_active else '✗'
+            ticker_info = f" [{product.ticker}]" if product.ticker else ''
+            
+            with get_session() as session:
+                prod = session.merge(product)
+                type_name = prod.type_link.name if prod.type_link else 'Unknown'
+
+            st.text(f"{status} {product.name}{ticker_info} ({type_name})")
     else:
         st.caption('No financial products found.')
 
