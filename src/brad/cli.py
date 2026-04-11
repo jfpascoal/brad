@@ -5,9 +5,6 @@ import click
 
 from brad.core.config import get_settings
 
-import brad.core.models.reference  # noqa: F401
-import brad.core.models.operational  # noqa: F401
-
 logger = logging.getLogger(__name__)
 
 
@@ -32,6 +29,8 @@ def db() -> None:
 @db.command()
 def init() -> None:
     """Create all database tables."""
+    import brad.core.models.operational  # noqa: F401
+    import brad.core.models.reference  # noqa: F401
     from brad.core.db import get_engine
     from brad.core.models.base import Base
 
@@ -106,6 +105,8 @@ def ingest(history_file: Path | None) -> None:
 @click.confirmation_option(prompt="This will drop and recreate all tables. Continue?")
 def reset() -> None:
     """Drop all tables, recreate, and re-seed initial data."""
+    import brad.core.models.operational  # noqa: F401
+    import brad.core.models.reference  # noqa: F401
     from brad.core.db import get_engine, get_session_factory
     from brad.core.models.base import Base
     from brad.services.seeding import seed_all

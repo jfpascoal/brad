@@ -1,7 +1,7 @@
 from pathlib import Path
-from unittest.mock import patch, mock_open
+from unittest.mock import mock_open, patch
 
-from brad.services.seeding import _load_yaml
+from brad.core.utils import load_yaml
 
 
 def test_load_yaml_parses_content():
@@ -10,13 +10,14 @@ def test_load_yaml_parses_content():
 
     with patch("pathlib.Path.exists", return_value=True):
         with patch("builtins.open", mock_open(read_data=mock_yaml)):
-            results = _load_yaml(Path("currencies.yaml"))
+            results = load_yaml(Path("currencies.yaml"))
             assert len(results) == 1
             assert results[0]["code"] == "TST"
 
 
 def test_load_yaml_empty_file():
     """Ensure empty YAML files return an empty list."""
-    with patch("builtins.open", mock_open(read_data="")):
-        results = _load_yaml(Path("empty.yaml"))
-        assert results == []
+    with patch("pathlib.Path.exists", return_value=True):
+        with patch("builtins.open", mock_open(read_data="")):
+            results = load_yaml(Path("empty.yaml"))
+            assert results == []
