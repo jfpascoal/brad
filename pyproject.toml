@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "brad"
+version = "0.0.1"
+authors = [
+    {name = "JF Pascoal"},
+]
+description = ""
+requires-python = ">=3.9"
+license = "MIT"
+dependencies = [
+    "psycopg[binary]",
+    "pandas",
+    "odfpy",
+    "pyyaml",
+    "sqlalchemy>=2.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "click>=8.0",
+]
+
+[project.scripts]
+brad = "brad.cli:cli"
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-cov",
+]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+]
+testpaths = ["tests"]
