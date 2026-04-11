@@ -82,7 +82,7 @@ def restore_database(backup_path: Path) -> None:
             str(backup_path),
         ]
 
-    env = {"PGPASSWORD": settings.postgres_password}
+    env = {**os.environ, "PGPASSWORD": settings.postgres_password}
 
     logger.info(f"Restoring from {backup_path}")
     result = subprocess.run(cmd, env=env, capture_output=True, text=True)
