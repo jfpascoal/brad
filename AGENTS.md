@@ -35,7 +35,7 @@ Keep docstrings short and to the point. Provide only necessary context for quick
 ## 🔀 Pull Request Descriptions
 - **Format**: Raw Markdown, UK English.
 - **Style**: No emojis, use bullet points, avoid redundancy.
-- **Focus**: Context/motivation, key changes, and significant file modifications.
+- **Focus**: Describe the code *as is* in its final proposed state. Do not provide a changelog or a timeline of delta changes made since the PR was opened. Focus on the final context, key features, and file modifications.
 
 ## 📂 Project Structure
 ```
@@ -64,3 +64,9 @@ dbt/                         # DBT project (analytical layer)
 - **Frontend**: Streamlit
 - **Database**: PostgreSQL
 - **Package Manager**: uv
+
+## ⚠️ Common Gotchas & Patterns
+- **Subprocess Environments**: When using `subprocess.run`, NEVER replace the environment entirely via `env={"VAR": "value"}` as this deletes the system `PATH` and breaks binary discovery. Always merge: `env={**os.environ, "VAR": "value"}`.
+- **Lazy Initialization**: Database engines (`get_engine()`) should be cached using `@lru_cache` and ORM models must be imported locally inside commands. This prevents CLI crashes when running simple commands (like `brad --help`) in environments without database credentials.
+- **Idempotency**: Data ingestion and seeding scripts must be fully idempotent. Use natural key lookups and upserts rather than blind inserts to ensure scripts can be run repeatedly.
+- **Technical Debt**: When discovering non-critical tech debt, duplicated logic, or dead code during PR reviews or refactoring tasks, document them by creating GitHub issues (e.g., via `gh issue create`) rather than attempting major unplanned restructuring.
