@@ -3,7 +3,6 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-import yaml
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -23,15 +22,9 @@ from brad.core.models.reference import (
     ProductType,
     TransactionType,
 )
+from brad.core.utils import load_yaml
 
 logger = logging.getLogger(__name__)
-
-
-def _load_yaml(path: Path) -> list[dict]:
-    """Load a YAML fixture file."""
-    with open(path) as f:
-        data = yaml.safe_load(f)
-    return data if data else []
 
 
 def _resolve_name(session: Session, model: type[Base], name: str) -> int:
@@ -199,7 +192,7 @@ def seed_all(session: Session, seed_dir: Path) -> dict[str, int]:
     ]:
         path = seed_dir / filename
         if path.exists():
-            items = _load_yaml(path)
+            items = load_yaml(path)
             results[filename] = _seed_simple(session, model, items)
             logger.info(f"Imported {results[filename]} items from {filename}")
 
@@ -210,7 +203,7 @@ def seed_all(session: Session, seed_dir: Path) -> dict[str, int]:
     ]:
         path = seed_dir / filename
         if path.exists():
-            items = _load_yaml(path)
+            items = load_yaml(path)
             results[filename] = _seed_simple(session, model, items)
             logger.info(f"Imported {results[filename]} items from {filename}")
 

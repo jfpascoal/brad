@@ -16,19 +16,11 @@ from sqlalchemy.orm import Session
 
 from brad.core.config import get_settings
 from brad.core.models.operational import AccountBalance, ProductValue
+from brad.core.utils import load_yaml
 from brad.repositories.accounts import AccountRepository
 from brad.repositories.products import ProductRepository
 
 logger = logging.getLogger(__name__)
-
-
-def _load_yaml(path: Path) -> list:
-    """Load a YAML fixture file."""
-    if not path.exists():
-        return []
-    with open(path) as f:
-        data = yaml.safe_load(f)
-    return data if data else []
 
 
 def _build_history_map(seed_dir: Path) -> tuple[dict, dict]:
@@ -38,14 +30,14 @@ def _build_history_map(seed_dir: Path) -> tuple[dict, dict]:
         tuple containing (account_label_map, product_label_map)
     """
     account_map = {}
-    for item in _load_yaml(seed_dir / "accounts.yaml"):
+    for item in load_yaml(seed_dir / "accounts.yaml"):
         label = item.get("_history_label")
         name = item.get("name")
         if label and name:
             account_map[label] = name
 
     product_map = {}
-    for item in _load_yaml(seed_dir / "financial_products.yaml"):
+    for item in load_yaml(seed_dir / "financial_products.yaml"):
         label = item.get("_history_label")
         name = item.get("name")
         if label and name:
@@ -122,6 +114,8 @@ def _parse_product_values(
             prod_name = col[: match.start(0) - 1].strip()
             if lbl in units_lbl:
                 col_map[prod_name]["units"] = col
+            elif lbl in investment_lbl:
+                col_map[prod_name]["investment"] = col
             elif lbl in value_lbl:
                 col_map[prod_name]["value"] = col
 
