@@ -12,6 +12,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from brad.core.models.base import Base, CreatedAtMixin, TimestampMixin
+from brad.core.models.reference import AccountType, ProductType
 
 
 class Provider(TimestampMixin, Base):
