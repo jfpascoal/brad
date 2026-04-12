@@ -43,12 +43,12 @@ def render_last_entry_preview(product: FinancialProduct) -> Optional[ProductValu
 
     if latest:
         details = [f"**Last entry:** {latest.date.strftime('%d %b %Y')}"]
-        details.append(f"Value: {format_currency(latest.current_value, product.currency)}")
+        details.append(f"Value: {format_currency(latest.current_value, product.currency_code)}")
 
         if latest.units is not None:
             details.append(f"Units: {latest.units:,.4f}")
         if latest.unit_value is not None:
-            details.append(f"Unit value: {format_currency(latest.unit_value, product.currency)}")
+            details.append(f"Unit value: {format_currency(latest.unit_value, product.currency_code)}")
 
         st.info(' — '.join(details))
     else:
@@ -115,7 +115,7 @@ def render_batch_table(product: FinancialProduct, latest_valuation: Optional[Pro
             st.text(entry['date'].strftime('%d %b %Y'))
 
         with col2:
-            st.text(format_currency(entry['current_value'], product.currency))
+            st.text(format_currency(entry['current_value'], product.currency_code))
 
         with col3:
             units_str = f"{entry['units']:,.4f}" if entry.get('units') else '-'
@@ -253,7 +253,7 @@ def render_valuation_entry_page() -> None:
         return
 
     product = product_map[selected_product_name]
-    currency = product.currency or ''
+    currency = product.currency_code or ''
 
     # Show shortcut to create new product
     with st.expander('Product not listed?'):

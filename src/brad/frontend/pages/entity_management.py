@@ -263,7 +263,7 @@ def render_account_form() -> None:
                         acc = Account(
                             name=name,
                             account_type_id=type_rc.id,
-                            currency=currency.upper(),
+                            currency_code=currency.upper(),
                             provider_id=provider_rc.id,
                             account_number=account_number if account_number else None,
                             sort_code=sort_code if sort_code else None,
@@ -301,7 +301,7 @@ def render_accounts_list() -> None:
             with get_session() as session:
                 acc = session.merge(account)
                 type_name = acc.type_link.name if acc.type_link else 'Unknown'
-            st.text(f"{status} {account.name} ({type_name}, {account.currency})")
+            st.text(f"{status} {account.name} ({type_name}, {account.currency_code})")
     else:
         st.caption('No accounts found.')
 
@@ -414,7 +414,7 @@ def render_financial_product_form() -> None:
                         prod = FinancialProduct(
                             name=name,
                             product_type_id=type_rc.id,
-                            currency=currency.upper(),
+                            currency_code=currency.upper(),
                             provider_id=provider_rc.id,
                             linked_account_id=account_id,
                             ticker=ticker if ticker else None,

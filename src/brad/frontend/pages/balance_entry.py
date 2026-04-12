@@ -45,7 +45,7 @@ def render_last_entry_preview(account: Account) -> Optional[AccountBalance]:
     if latest:
         st.info(
             f"**Last entry:** {latest.date.strftime('%d %b %Y')} — "
-            f"{format_currency(latest.balance, account.currency)}"
+            f"{format_currency(latest.balance, account.currency_code)}"
         )
     else:
         st.info('No previous entries for this account.')
@@ -111,7 +111,7 @@ def render_batch_table(account: Account, latest_balance: Optional[AccountBalance
             st.text(entry['date'].strftime('%d %b %Y'))
 
         with col2:
-            st.text(format_currency(entry['balance'], account.currency))
+            st.text(format_currency(entry['balance'], account.currency_code))
 
         with col3:
             delta = calculate_delta(entry['balance'], previous_value)
@@ -228,7 +228,7 @@ def render_balance_entry_page() -> None:
         return
 
     account = account_map[selected_account_name]
-    currency = account.currency or ''
+    currency = account.currency_code or ''
 
     # Show shortcut to create new account
     with st.expander('Account not listed?'):
