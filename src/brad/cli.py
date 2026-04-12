@@ -198,7 +198,7 @@ def frontend(port: int) -> None:
         env = {**os.environ}
         subprocess.run(cmd, env=env)
     except KeyboardInterrupt:
-        click.echo("\n✓ Frontend stopped.")
+        click.echo("\n[OK] Frontend stopped.")
 
 
 if __name__ == "__main__":

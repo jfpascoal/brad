@@ -7,14 +7,27 @@ from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+_project_root = Path(__file__).resolve().parents[3]
+_local_secrets = _project_root / "docker" / "secrets"
+_default_secrets_dir = str(_local_secrets) if _local_secrets.exists() else "/run/secrets"
+
+# Automatically map local .txt secrets to environment variables to mimic docker's behavior
+if _local_secrets.exists():
+    for secret_file in _local_secrets.glob("*.txt"):
+        env_key = secret_file.stem.upper()
+        if env_key not in os.environ:
+            os.environ[env_key] = secret_file.read_text(encoding="utf-8").strip()
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
         env_prefix="",
-        env_file=".env",
-        secrets_dir=os.environ.get("BRAD_SECRETS_DIR", "/run/secrets"),
+        secrets_dir=os.environ.get("BRAD_SECRETS_DIR", _default_secrets_dir),
         case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
     )
 
     # Database
@@ -31,9 +44,11 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         """SQLAlchemy-compatible connection string."""
-        encoded_password = urllib.parse.quote_plus(self.postgres_password)
+        user = urllib.parse.quote_plus(self.postgres_user)
+        pwd = urllib.parse.quote_plus(self.postgres_password)
+
         return (
-            f"postgresql+psycopg://{self.postgres_user}:{encoded_password}"
+            f"postgresql+psycopg://{user}:{pwd}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
