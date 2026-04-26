@@ -1,4 +1,5 @@
 import os
+import urllib.parse
 from functools import lru_cache
 from pathlib import Path
 
@@ -11,6 +12,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="",
+        env_file=".env",
         secrets_dir=os.environ.get("BRAD_SECRETS_DIR", "/run/secrets"),
         case_sensitive=False,
     )
@@ -29,8 +31,9 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         """SQLAlchemy-compatible connection string."""
+        encoded_password = urllib.parse.quote_plus(self.postgres_password)
         return (
-            f"postgresql+psycopg://{self.postgres_user}:{self.postgres_password}"
+            f"postgresql+psycopg://{self.postgres_user}:{encoded_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 

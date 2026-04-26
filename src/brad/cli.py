@@ -36,7 +36,7 @@ def init() -> None:
 
     click.echo("Creating tables...")
     Base.metadata.create_all(get_engine())
-    click.echo("✓ All tables created.")
+    click.echo("[OK] All tables created.")
 
 
 @db.command()
@@ -63,10 +63,10 @@ def seed(seed_dir: Path | None) -> None:
             session.commit()
             for name, count in results.items():
                 click.echo(f"  {name}: {count} records")
-            click.echo("✓ Initial data population complete.")
+            click.echo("[OK] Initial data population complete.")
         except Exception as e:
             session.rollback()
-            click.echo(f"✗ Seeding failed: {e}", err=True)
+            click.echo(f"[ERROR] Seeding failed: {e}", err=True)
             raise click.Abort()
 
 
@@ -94,10 +94,10 @@ def ingest(history_file: Path | None) -> None:
             session.commit()
             for name, count in results.items():
                 click.echo(f"  {name}: {count} records inserted/updated")
-            click.echo("✓ Ingestion complete.")
+            click.echo("[OK] Ingestion complete.")
         except Exception as e:
             session.rollback()
-            click.echo(f"✗ Ingestion failed: {e}", err=True)
+            click.echo(f"[ERROR] Ingestion failed: {e}", err=True)
             raise click.Abort()
 
 
@@ -128,10 +128,10 @@ def reset() -> None:
             session.commit()
             for name, count in results.items():
                 click.echo(f"  {name}: {count} records")
-            click.echo("✓ Reset and population complete.")
+            click.echo("[OK] Reset and population complete.")
         except Exception as e:
             session.rollback()
-            click.echo(f"✗ Reset failed: {e}", err=True)
+            click.echo(f"[ERROR] Reset failed: {e}", err=True)
             raise click.Abort()
 
 
@@ -155,7 +155,7 @@ def backup(output: Path | None, fmt: str) -> None:
     from brad.services.backup import backup_database
 
     path = backup_database(output_path=output, fmt=fmt)
-    click.echo(f"✓ Backup created: {path}")
+    click.echo(f"[OK] Backup created: {path}")
 
 
 @cli.command()
@@ -165,7 +165,7 @@ def restore(backup_path: Path) -> None:
     from brad.services.backup import restore_database
 
     restore_database(backup_path)
-    click.echo("✓ Database restored.")
+    click.echo("[OK] Database restored.")
 
 
 if __name__ == "__main__":

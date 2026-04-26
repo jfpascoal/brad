@@ -1,6 +1,9 @@
 # Set the default shell to sh (standard for Git Bash)
 set shell := ["sh", "-c"]
 
+# Load variables from .env file
+set dotenv-load := true
+
 # List available commands
 default:
     @just --list
