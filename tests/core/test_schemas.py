@@ -4,8 +4,21 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from brad.core.models.operational import Account
-from brad.core.schemas import AccountCreate, AccountRead, AccountBalanceCreate
+from brad.core.models.operational import Account, Provider, Holder, FinancialProduct
+from brad.core.models.reference import Currency, AccountType
+from brad.core.schemas import (
+    AccountCreate,
+    AccountRead,
+    AccountBalanceCreate,
+    CurrencySchema,
+    TypeSchema,
+    AccountTransactionCreate,
+    ProductValueCreate,
+    ProductTransactionCreate,
+    ProviderRead,
+    HolderRead,
+    FinancialProductRead,
+)
 
 
 def test_account_create_schema_validation():
@@ -62,3 +75,74 @@ def test_decimal_conversion():
     assert isinstance(bal1.balance, Decimal)
     assert bal1.balance == Decimal("100.50")
     assert isinstance(bal2.balance, Decimal)
+
+
+@pytest.mark.parametrize(
+    "SchemaClass, ORMClass, mock_kwargs",
+    [
+        (CurrencySchema, Currency, {"code": "USD", "name": "Dollar", "symbol": "$"}),
+        (TypeSchema, AccountType, {"id": 1, "name": "Current", "name_pt": "Corrente"}),
+        (ProviderRead, Provider, {"id": 1, "name": "Bank", "country": "GB"}),
+        (HolderRead, Holder, {"id": 2, "name": "John", "tax_bracket": "High"}),
+        (
+            FinancialProductRead,
+            FinancialProduct,
+            {
+                "id": 10,
+                "name": "ETF",
+                "product_type_id": 1,
+                "currency_code": "GBP",
+                "provider_id": 1,
+                "is_active": True,
+            },
+        ),
+    ],
+)
+def test_read_schemas_from_attributes(SchemaClass, ORMClass, mock_kwargs):
+    """Test all remaining Read schemas map ORM objects correctly."""
+    # Build pseudo-ORM instance
+    orm_obj = ORMClass(**mock_kwargs)
+
+    # Parse via Pydantic model_validate
+    parsed = SchemaClass.model_validate(orm_obj)
+
+    # Spot check properties match the kwargs dynamically
+    for key, val in mock_kwargs.items():
+        assert getattr(parsed, key) == val
+
+
+@pytest.mark.parametrize(
+    "SchemaClass, mock_kwargs",
+    [
+        (
+            AccountTransactionCreate,
+            {
+                "date": date.today(),
+                "account_id": 1,
+                "transaction_type_id": 2,
+                "amount": "100.50",
+            },
+        ),
+        (
+            ProductValueCreate,
+            {"date": date.today(), "product_id": 1, "current_value": "5000"},
+        ),
+        (
+            ProductTransactionCreate,
+            {
+                "date": date.today(),
+                "product_id": 2,
+                "transaction_type_id": 1,
+                "amount": "200",
+            },
+        ),
+    ],
+)
+def test_create_schemas_parsing(SchemaClass, mock_kwargs):
+    """Ensure creation schemas properly parse simple dictionaries."""
+    parsed = SchemaClass(**mock_kwargs)
+    # Check at least one financial field properly coerced to Decimal
+    amount_field = getattr(parsed, "amount", None) or getattr(
+        parsed, "current_value", None
+    )
+    assert isinstance(amount_field, Decimal)

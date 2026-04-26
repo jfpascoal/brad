@@ -37,6 +37,7 @@ def test_cli_db_init(mock_meta, mock_get_engine, runner):
 
     assert result.exit_code == 0
     assert "tables created" in result.output
+    mock_meta.create_all.assert_called_once_with(mock_engine)
 
 
 @patch("brad.services.backup.backup_database")
