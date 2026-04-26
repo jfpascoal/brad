@@ -24,15 +24,16 @@ class AccountRepository(BaseRepository[Account]):
 
     def set_holders(self, account: Account, holder_ids: list[int]) -> None:
         """Set holders for an account (replaces existing)."""
-        account.holder_links.clear()
-        self.session.flush()
+        new_links = []
         for ordinal, holder_id in enumerate(holder_ids, start=1):
-            link = AccountHolder(
-                account_id=account.id,
-                holder_id=holder_id,
-                ordinal=ordinal,
+            new_links.append(
+                AccountHolder(
+                    account_id=account.id,
+                    holder_id=holder_id,
+                    ordinal=ordinal,
+                )
             )
-            self.session.add(link)
+        account.holder_links = new_links
         self.session.flush()
 
 

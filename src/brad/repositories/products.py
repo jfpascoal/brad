@@ -23,15 +23,16 @@ class ProductRepository(BaseRepository[FinancialProduct]):
 
     def set_holders(self, product: FinancialProduct, holder_ids: list[int]) -> None:
         """Set holders for a product (replaces existing)."""
-        product.holder_links.clear()
-        self.session.flush()
+        new_links = []
         for ordinal, holder_id in enumerate(holder_ids, start=1):
-            link = ProductHolder(
-                product_id=product.id,
-                holder_id=holder_id,
-                ordinal=ordinal,
+            new_links.append(
+                ProductHolder(
+                    product_id=product.id,
+                    holder_id=holder_id,
+                    ordinal=ordinal,
+                )
             )
-            self.session.add(link)
+        product.holder_links = new_links
         self.session.flush()
 
 
