@@ -97,15 +97,15 @@ def main() -> None:
 
     # Route to appropriate page
     if page == Pages.ADD_BALANCE:
-        from brad.frontend.pages.balance_entry import render_balance_entry_page
+        from brad.frontend.views.balance_entry import render_balance_entry_page
 
         render_balance_entry_page()
     elif page == Pages.ADD_VALUATION:
-        from brad.frontend.pages.valuation_entry import render_valuation_entry_page
+        from brad.frontend.views.valuation_entry import render_valuation_entry_page
 
         render_valuation_entry_page()
     elif page == Pages.MANAGE_ENTITIES:
-        from brad.frontend.pages.entity_management import (
+        from brad.frontend.views.entity_management import (
             render_entity_management_page,
         )
 
