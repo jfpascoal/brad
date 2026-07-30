@@ -1,8 +1,10 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
 from datetime import date
-from typing import Sequence
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from brad.core.models.operational import (
     Account,
@@ -21,6 +23,11 @@ class AccountRepository(BaseRepository[Account]):
         """Return all active accounts."""
         stmt = select(Account).where(Account.is_active.is_(True))
         return self.session.scalars(stmt).all()
+
+    def list_all_with_types(self) -> Sequence[Account]:
+        """Return all accounts with type relationship eager-loaded."""
+        stmt = select(Account).options(joinedload(Account.type_link))
+        return self.session.scalars(stmt).unique().all()
 
     def set_holders(self, account: Account, holder_ids: list[int]) -> None:
         """Set holders for an account (replaces existing)."""
