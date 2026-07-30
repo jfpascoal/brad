@@ -14,6 +14,7 @@ Code must be simple, readable, modular, and efficient.
 - **Modularity**: Prioritise short, single-purpose functions/methods.
 - **Classes**: Use for dependency injection and state persistence. Each class must have a specific, well-defined purpose.
 - **Architecture**: Organise code into modules/abstractions with simple, robust interfaces.
+- **Imports**: All import statements must be placed strictly at the top of the file. The *only* exception to this rule is for Lazy Initialization of database engines/ORM models inside CLI commands, as detailed in the Gotchas section below.
 - **No File Headers**: Do not add module-level docstrings that describe what the file replaces, how it changed, or its history. Comments should describe current behaviour, not past states.
 
 ## 🐍 Python Docstrings

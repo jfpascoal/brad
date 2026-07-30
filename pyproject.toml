@@ -29,6 +29,7 @@ brad = "brad.cli:cli"
 dev = [
     "pytest",
     "pytest-cov",
+    "ruff",
 ]
 
 [tool.pytest.ini_options]
@@ -36,3 +37,6 @@ addopts = [
     "--import-mode=importlib",
 ]
 testpaths = ["tests"]
+filterwarnings = [
+    "ignore:.*directory.*run.*secrets.*does not exist:UserWarning",
+]

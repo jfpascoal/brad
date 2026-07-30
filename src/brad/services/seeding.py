@@ -210,14 +210,14 @@ def seed_all(session: Session, seed_dir: Path) -> dict[str, int]:
     # 3. Accounts (depends on types, providers, holders)
     path = seed_dir / "accounts.yaml"
     if path.exists():
-        items = _load_yaml(path)
+        items = load_yaml(path)
         results["accounts.yaml"] = _seed_accounts(session, items)
         logger.info(f"Imported {results['accounts.yaml']} accounts")
 
     # 4. Financial products (depends on types, providers, holders, accounts)
     path = seed_dir / "financial_products.yaml"
     if path.exists():
-        items = _load_yaml(path)
+        items = load_yaml(path)
         results["financial_products.yaml"] = _seed_financial_products(session, items)
         logger.info(f"Imported {results['financial_products.yaml']} financial products")
 

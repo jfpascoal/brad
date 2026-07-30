@@ -19,7 +19,7 @@ def test_missing_required_env_var_raises_validation_error():
     """Ensure Pydantic settings fail if critical DB config is missing."""
     with patch.dict(os.environ, clear=True):
         with pytest.raises(ValidationError) as exc:
-            Settings()
+            Settings(_env_file=None)
 
         errors = str(exc.value)
         assert "postgres_user" in errors
@@ -44,5 +44,5 @@ def test_missing_required_env_var_raises_validation_error():
 def test_database_url_computation(host, port, expected_dsn):
     """Ensure the computed database_url property builds correctly."""
     with patch.dict(os.environ, {"POSTGRES_HOST": host, "POSTGRES_PORT": port}):
-        s = Settings()
+        s = Settings(_env_file=None)
         assert s.database_url == expected_dsn
