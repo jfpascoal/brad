@@ -11,4 +11,4 @@ abstracting database operations from the UI components.
 
 from brad.frontend.app import run_app
 
-__all__ = ['run_app']
+__all__ = ["run_app"]
