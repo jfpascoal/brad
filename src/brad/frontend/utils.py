@@ -15,6 +15,7 @@ from typing import Any
 import streamlit as st
 from sqlalchemy.orm import Session
 
+from brad.core.db import get_session_factory
 from brad.frontend.constants import StateKeys
 
 
@@ -27,8 +28,6 @@ def get_session() -> Generator[Session, None, None]:
     """
     factory = st.session_state.get(StateKeys.SESSION_FACTORY)
     if factory is None:
-        from brad.core.db import get_session_factory
-
         factory = get_session_factory()
         st.session_state[StateKeys.SESSION_FACTORY] = factory
 

@@ -1,5 +1,8 @@
 import logging
+import os
 from pathlib import Path
+import subprocess
+import sys
 
 import click
 
@@ -177,9 +180,6 @@ def restore(backup_path: Path) -> None:
 )
 def frontend(port: int) -> None:
     """Launch the Streamlit frontend application."""
-    import subprocess
-    import sys
-
     frontend_app_path = Path(__file__).parent / "frontend" / "app.py"
     cmd = [
         sys.executable,
@@ -194,7 +194,6 @@ def frontend(port: int) -> None:
     click.echo(f"Launching frontend on port {port}...")
     try:
         # We merge env variables to keep PATH intact as per AGENTS.md Gotchas!
-        import os
         env = {**os.environ}
         subprocess.run(cmd, env=env)
     except KeyboardInterrupt:

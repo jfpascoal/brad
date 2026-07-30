@@ -11,8 +11,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
-from sqlalchemy.exc import IntegrityError
 import streamlit as st
+from sqlalchemy.exc import IntegrityError
 
 from brad.core.models.operational import FinancialProduct, ProductValue
 from brad.frontend.constants import EntityTabs, Pages, StateKeys

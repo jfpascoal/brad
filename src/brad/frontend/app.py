@@ -12,6 +12,11 @@ import streamlit as st
 
 from brad.core.db import get_session_factory
 from brad.frontend.constants import Pages, StateKeys
+from brad.frontend.views.balance_entry import render_balance_entry_page
+from brad.frontend.views.entity_management import (
+    render_entity_management_page,
+)
+from brad.frontend.views.valuation_entry import render_valuation_entry_page
 
 
 @st.dialog("Confirm Exit")
@@ -97,18 +102,10 @@ def main() -> None:
 
     # Route to appropriate page
     if page == Pages.ADD_BALANCE:
-        from brad.frontend.views.balance_entry import render_balance_entry_page
-
         render_balance_entry_page()
     elif page == Pages.ADD_VALUATION:
-        from brad.frontend.views.valuation_entry import render_valuation_entry_page
-
         render_valuation_entry_page()
     elif page == Pages.MANAGE_ENTITIES:
-        from brad.frontend.views.entity_management import (
-            render_entity_management_page,
-        )
-
         render_entity_management_page()
 
 
