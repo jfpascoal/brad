@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -52,6 +53,21 @@ class ProductValueRepository(BaseRepository[ProductValue]):
         stmt = (
             select(ProductValue)
             .where(ProductValue.product_id == product_id)
+            .order_by(ProductValue.date.desc())
+            .limit(1)
+        )
+        return self.session.scalars(stmt).first()
+
+    def get_latest_before(
+        self, product_id: int, before_date: date
+    ) -> ProductValue | None:
+        """Get the most recent valuation for a product before a given date."""
+        stmt = (
+            select(ProductValue)
+            .where(
+                ProductValue.product_id == product_id,
+                ProductValue.date < before_date,
+            )
             .order_by(ProductValue.date.desc())
             .limit(1)
         )

@@ -58,6 +58,21 @@ class AccountBalanceRepository(BaseRepository[AccountBalance]):
         )
         return self.session.scalars(stmt).first()
 
+    def get_latest_before(
+        self, account_id: int, before_date: date
+    ) -> AccountBalance | None:
+        """Get the most recent balance for an account before a given date."""
+        stmt = (
+            select(AccountBalance)
+            .where(
+                AccountBalance.account_id == account_id,
+                AccountBalance.date < before_date,
+            )
+            .order_by(AccountBalance.date.desc())
+            .limit(1)
+        )
+        return self.session.scalars(stmt).first()
+
     def get_by_date_range(
         self, account_id: int, start: date, end: date
     ) -> Sequence[AccountBalance]:
