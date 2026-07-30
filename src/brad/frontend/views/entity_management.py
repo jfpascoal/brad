@@ -298,19 +298,35 @@ def render_account_form() -> None:
 
 def render_accounts_list() -> None:
     """
-    Renders the list of existing accounts.
+    Renders the list of existing accounts, displaying active accounts first
+    and collapsing inactive accounts in an expander.
     """
     with get_session() as session:
         accounts = AccountRepository(session).list_all_with_types()
 
-    if accounts:
-        st.caption(f"{len(accounts)} account(s)")
-        for account in accounts:
-            status = "✓" if account.is_active else "✗"
-            type_name = account.type_link.name if account.type_link else "Unknown"
-            st.text(f"{status} {account.name} ({type_name}, {account.currency_code})")
-    else:
+    if not accounts:
         st.caption("No accounts found.")
+        return
+
+    active_accounts = [a for a in accounts if a.is_active]
+    inactive_accounts = [a for a in accounts if not a.is_active]
+
+    st.caption(f"{len(accounts)} account(s) ({len(active_accounts)} active)")
+
+    if active_accounts:
+        for account in active_accounts:
+            type_name = account.type_link.name if account.type_link else "Unknown"
+            st.text(f"✓ {account.name} ({type_name}, {account.currency_code})")
+    else:
+        st.caption("No active accounts.")
+
+    if inactive_accounts:
+        with st.expander(
+            f"Inactive Accounts ({len(inactive_accounts)})", expanded=False
+        ):
+            for account in inactive_accounts:
+                type_name = account.type_link.name if account.type_link else "Unknown"
+                st.text(f"✗ {account.name} ({type_name}, {account.currency_code})")
 
 
 # =============================================================================
@@ -456,20 +472,37 @@ def render_financial_product_form() -> None:
 
 def render_financial_products_list() -> None:
     """
-    Renders the list of existing financial products.
+    Renders the list of existing financial products, displaying active products first
+    and collapsing inactive products in an expander.
     """
     with get_session() as session:
         products = ProductRepository(session).list_all_with_types()
 
-    if products:
-        st.caption(f"{len(products)} product(s)")
-        for product in products:
-            status = "✓" if product.is_active else "✗"
+    if not products:
+        st.caption("No financial products found.")
+        return
+
+    active_products = [p for p in products if p.is_active]
+    inactive_products = [p for p in products if not p.is_active]
+
+    st.caption(f"{len(products)} product(s) ({len(active_products)} active)")
+
+    if active_products:
+        for product in active_products:
             ticker_info = f" [{product.ticker}]" if product.ticker else ""
             type_name = product.type_link.name if product.type_link else "Unknown"
-            st.text(f"{status} {product.name}{ticker_info} ({type_name})")
+            st.text(f"✓ {product.name}{ticker_info} ({type_name})")
     else:
-        st.caption("No financial products found.")
+        st.caption("No active products.")
+
+    if inactive_products:
+        with st.expander(
+            f"Inactive Products ({len(inactive_products)})", expanded=False
+        ):
+            for product in inactive_products:
+                ticker_info = f" [{product.ticker}]" if product.ticker else ""
+                type_name = product.type_link.name if product.type_link else "Unknown"
+                st.text(f"✗ {product.name}{ticker_info} ({type_name})")
 
 
 # =============================================================================
