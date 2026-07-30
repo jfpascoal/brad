@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from sqlalchemy.exc import IntegrityError
 import streamlit as st
 
 from brad.core.models.operational import Account, AccountBalance
@@ -72,12 +73,10 @@ def render_delta_indicator(
             st.info(f"Change: {delta_str}")
 
 
-def render_batch_table(account: Account, latest_balance: AccountBalance | None) -> None:
+def render_batch_table() -> None:
     """
-    Renders the batch entry table showing entries to be submitted.
-
-    :param account: The selected Account model.
-    :param latest_balance: The latest balance from the database.
+    Renders the batch entry table showing entries across all accounts to be submitted.
+    Calculates deltas in chronological order per account.
     """
     batch = st.session_state.get(StateKeys.BALANCE_BATCH, [])
 
@@ -86,40 +85,52 @@ def render_batch_table(account: Account, latest_balance: AccountBalance | None) 
 
     st.subheader("Pending Entries")
 
-    # Filter batch for current account
-    account_batch = [e for e in batch if e["account_id"] == account.id]
+    # Group batch entries by account_id and sort chronologically by date
+    grouped_entries: dict[int, list[dict]] = {}
+    for entry in batch:
+        acc_id = entry["account_id"]
+        grouped_entries.setdefault(acc_id, []).append(entry)
 
-    if not account_batch:
-        st.caption("No pending entries for this account.")
-        return
+    # Calculate chronological deltas per account
+    deltas_map: dict[id, dict] = {}
+    with get_session() as session:
+        repo = AccountBalanceRepository(session)
+        for acc_id, entries in grouped_entries.items():
+            # Sort entries by date ascending for delta calculation
+            sorted_entries = sorted(entries, key=lambda x: x["date"])
+            for i, entry in enumerate(sorted_entries):
+                if i == 0:
+                    latest_db = repo.get_latest_before(acc_id, entry["date"])
+                    prev_val = latest_db.balance if latest_db else None
+                else:
+                    prev_val = sorted_entries[i - 1]["balance"]
 
-    # Display batch entries with deltas
-    previous_value = latest_balance.balance if latest_balance else None
+                deltas_map[id(entry)] = calculate_delta(entry["balance"], prev_val)
 
-    for i, entry in enumerate(account_batch):
-        col1, col2, col3, col4 = st.columns([2, 2, 3, 1])
+    # Display batch entries in table
+    for i, entry in enumerate(batch):
+        col_acc, col_date, col_val, col_delta, col_del = st.columns([3, 2, 2, 3, 1])
 
-        with col1:
+        with col_acc:
+            st.text(entry["account_name"])
+
+        with col_date:
             st.text(entry["date"].strftime("%d %b %Y"))
 
-        with col2:
-            st.text(format_currency(entry["balance"], account.currency_code))
+        with col_val:
+            st.text(format_currency(entry["balance"], entry["currency_code"]))
 
-        with col3:
-            delta = calculate_delta(entry["balance"], previous_value)
+        with col_delta:
+            delta = deltas_map.get(id(entry), {"absolute": None, "percentage": None})
             st.text(format_delta(delta["absolute"], delta["percentage"]))
 
-        with col4:
-            if st.button(
-                "🗑️", key=f"remove_balance_{account.id}_{i}", help="Remove entry"
-            ):
+        with col_del:
+            if st.button("🗑️", key=f"remove_balance_{i}", help="Remove entry"):
                 target_entry = entry
                 st.session_state[StateKeys.BALANCE_BATCH] = [
                     e for e in batch if e is not target_entry
                 ]
                 st.rerun()
-
-        previous_value = entry["balance"]
 
 
 def add_to_batch(account: Account, entry_date: date, balance: Decimal) -> bool:
@@ -135,7 +146,7 @@ def add_to_batch(account: Account, entry_date: date, balance: Decimal) -> bool:
     for entry in batch:
         if entry["account_id"] == account.id and entry["date"] == entry_date:
             st.error(
-                f"An entry for {entry_date.strftime('%d %b %Y')} already exists in the batch."
+                f"An entry for account '{account.name}' on {entry_date.strftime('%d %b %Y')} already exists in the batch."
             )
             return False
 
@@ -143,39 +154,29 @@ def add_to_batch(account: Account, entry_date: date, balance: Decimal) -> bool:
         st.session_state[StateKeys.BALANCE_BATCH] = []
 
     st.session_state[StateKeys.BALANCE_BATCH].append(
-        {"account_id": account.id, "date": entry_date, "balance": balance}
+        {
+            "account_id": account.id,
+            "account_name": account.name,
+            "currency_code": account.currency_code or "",
+            "date": entry_date,
+            "balance": balance,
+        }
     )
     return True
 
 
-def clear_batch(account_id: int | None = None) -> None:
+def clear_batch() -> None:
+    """Clears all pending entries in the balance batch."""
+    st.session_state[StateKeys.BALANCE_BATCH] = []
+
+
+def submit_batch() -> bool:
     """
-    Clears the balance batch, optionally for a specific account only.
+    Submits all pending balance batch entries across accounts to the database.
 
-    :param account_id: If provided, only clears entries for this account.
-    """
-    if account_id is not None:
-        st.session_state[StateKeys.BALANCE_BATCH] = [
-            e
-            for e in st.session_state.get(StateKeys.BALANCE_BATCH, [])
-            if e["account_id"] != account_id
-        ]
-    else:
-        st.session_state[StateKeys.BALANCE_BATCH] = []
-
-
-def submit_batch(account: Account) -> bool:
-    """
-    Submits the batch entries for a specific account to the database.
-
-    :param account: The Account model to submit entries for.
     :return: True if submission was successful, False otherwise.
     """
-    batch = [
-        e
-        for e in st.session_state.get(StateKeys.BALANCE_BATCH, [])
-        if e["account_id"] == account.id
-    ]
+    batch = st.session_state.get(StateKeys.BALANCE_BATCH, [])
 
     if not batch:
         return False
@@ -192,9 +193,16 @@ def submit_batch(account: Account) -> bool:
             repo.create_many(balances)
             session.commit()
 
-        clear_batch(account.id)
-        st.success(f"Successfully added {len(batch)} balance entries.")
+        clear_batch()
+        st.success(
+            f"Successfully added {len(batch)} balance record(s) across accounts."
+        )
         return True
+    except IntegrityError:
+        st.error(
+            "Failed to submit entries: A balance record with the same account and date already exists in the database."
+        )
+        return False
     except Exception as e:  # noqa: BLE001
         st.error(f"Failed to submit entries: {e}")
         return False
@@ -252,7 +260,7 @@ def render_balance_entry_page() -> None:
     st.divider()
 
     # Last entry preview
-    latest_balance = render_last_entry_preview(account)
+    render_last_entry_preview(account)
 
     st.divider()
 
@@ -282,18 +290,23 @@ def render_balance_entry_page() -> None:
         except InvalidOperation:
             st.error("Please enter a valid number.")
 
-    # Show delta preview
+    # Show delta preview for current entry date against DB/batch
     if balance_value is not None:
-        # Determine previous value (from batch or database)
-        account_batch = [
-            e
-            for e in st.session_state.get(StateKeys.BALANCE_BATCH, [])
-            if e["account_id"] == account.id
+        # Determine preceding value for entry_date
+        with get_session() as session:
+            repo = AccountBalanceRepository(session)
+            latest_before = repo.get_latest_before(account.id, entry_date)
+
+        batch = st.session_state.get(StateKeys.BALANCE_BATCH, [])
+        account_batch_before = [
+            e for e in batch if e["account_id"] == account.id and e["date"] < entry_date
         ]
-        if account_batch:
-            previous_value = account_batch[-1]["balance"]
-        elif latest_balance:
-            previous_value = latest_balance.balance
+
+        if account_batch_before:
+            account_batch_before.sort(key=lambda x: x["date"])
+            previous_value = account_batch_before[-1]["balance"]
+        elif latest_before:
+            previous_value = latest_before.balance
         else:
             previous_value = None
 
@@ -306,30 +319,31 @@ def render_balance_entry_page() -> None:
 
     with col_add:
         add_disabled = balance_value is None
-        if st.button("Add to Batch", disabled=add_disabled, use_container_width=True):
-            add_to_batch(account, entry_date, balance_value)
+        if st.button(
+            "Add to Batch", disabled=add_disabled, use_container_width=True
+        ) and add_to_batch(account, entry_date, balance_value):
             st.rerun()
 
+    batch_count = len(st.session_state.get(StateKeys.BALANCE_BATCH, []))
+
     with col_submit:
-        account_batch = [
-            e
-            for e in st.session_state.get(StateKeys.BALANCE_BATCH, [])
-            if e["account_id"] == account.id
-        ]
-        submit_disabled = len(account_batch) == 0
-        if st.button(
-            "Submit All",
-            disabled=submit_disabled,
-            type="primary",
-            use_container_width=True,
+        submit_disabled = batch_count == 0
+        btn_label = f"Submit All ({batch_count})" if batch_count > 0 else "Submit All"
+        if (
+            st.button(
+                btn_label,
+                disabled=submit_disabled,
+                type="primary",
+                use_container_width=True,
+            )
+            and submit_batch()
         ):
-            submit_batch(account)
             st.rerun()
 
     with col_clear:
         if st.button("Clear Batch", use_container_width=True):
-            clear_batch(account.id)
+            clear_batch()
             st.rerun()
 
-    # Render batch table
-    render_batch_table(account, latest_balance)
+    # Render batch table across all accounts
+    render_batch_table()

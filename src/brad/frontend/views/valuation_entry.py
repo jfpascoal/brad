@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from sqlalchemy.exc import IntegrityError
 import streamlit as st
 
 from brad.core.models.operational import FinancialProduct, ProductValue
@@ -80,14 +81,10 @@ def render_delta_indicator(
             st.info(f"Change: {delta_str}")
 
 
-def render_batch_table(
-    product: FinancialProduct, latest_valuation: ProductValue | None
-) -> None:
+def render_batch_table() -> None:
     """
-    Renders the batch entry table showing entries to be submitted.
-
-    :param product: The selected FinancialProduct model.
-    :param latest_valuation: The latest valuation from the database.
+    Renders the batch entry table showing entries across all products to be submitted.
+    Calculates deltas in chronological order per product.
     """
     batch = st.session_state.get(StateKeys.VALUATION_BATCH, [])
 
@@ -96,44 +93,59 @@ def render_batch_table(
 
     st.subheader("Pending Entries")
 
-    # Filter batch for current product
-    product_batch = [e for e in batch if e["product_id"] == product.id]
+    # Group batch entries by product_id and sort chronologically by date
+    grouped_entries: dict[int, list[dict]] = {}
+    for entry in batch:
+        prod_id = entry["product_id"]
+        grouped_entries.setdefault(prod_id, []).append(entry)
 
-    if not product_batch:
-        st.caption("No pending entries for this product.")
-        return
+    # Calculate chronological deltas per product
+    deltas_map: dict[id, dict] = {}
+    with get_session() as session:
+        repo = ProductValueRepository(session)
+        for prod_id, entries in grouped_entries.items():
+            sorted_entries = sorted(entries, key=lambda x: x["date"])
+            for i, entry in enumerate(sorted_entries):
+                if i == 0:
+                    latest_db = repo.get_latest_before(prod_id, entry["date"])
+                    prev_val = latest_db.current_value if latest_db else None
+                else:
+                    prev_val = sorted_entries[i - 1]["current_value"]
 
-    # Display batch entries with deltas
-    previous_value = latest_valuation.current_value if latest_valuation else None
+                deltas_map[id(entry)] = calculate_delta(
+                    entry["current_value"], prev_val
+                )
 
-    for i, entry in enumerate(product_batch):
-        col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 1])
+    # Display batch entries in table
+    for i, entry in enumerate(batch):
+        col_prod, col_date, col_val, col_units, col_delta, col_del = st.columns(
+            [3, 2, 2, 2, 3, 1]
+        )
 
-        with col1:
+        with col_prod:
+            st.text(entry["product_name"])
+
+        with col_date:
             st.text(entry["date"].strftime("%d %b %Y"))
 
-        with col2:
-            st.text(format_currency(entry["current_value"], product.currency_code))
+        with col_val:
+            st.text(format_currency(entry["current_value"], entry["currency_code"]))
 
-        with col3:
+        with col_units:
             units_str = f"{entry['units']:,.4f}" if entry.get("units") else "-"
             st.text(units_str)
 
-        with col4:
-            delta = calculate_delta(entry["current_value"], previous_value)
+        with col_delta:
+            delta = deltas_map.get(id(entry), {"absolute": None, "percentage": None})
             st.text(format_delta(delta["absolute"], delta["percentage"]))
 
-        with col5:
-            if st.button(
-                "🗑️", key=f"remove_valuation_{product.id}_{i}", help="Remove entry"
-            ):
+        with col_del:
+            if st.button("🗑️", key=f"remove_valuation_{i}", help="Remove entry"):
                 target_entry = entry
                 st.session_state[StateKeys.VALUATION_BATCH] = [
                     e for e in batch if e is not target_entry
                 ]
                 st.rerun()
-
-        previous_value = entry["current_value"]
 
 
 def add_to_batch(
@@ -157,7 +169,7 @@ def add_to_batch(
     for entry in batch:
         if entry["product_id"] == product.id and entry["date"] == entry_date:
             st.error(
-                f"An entry for {entry_date.strftime('%d %b %Y')} already exists in the batch."
+                f"An entry for product '{product.name}' on {entry_date.strftime('%d %b %Y')} already exists in the batch."
             )
             return False
 
@@ -167,6 +179,8 @@ def add_to_batch(
     st.session_state[StateKeys.VALUATION_BATCH].append(
         {
             "product_id": product.id,
+            "product_name": product.name,
+            "currency_code": product.currency_code or "",
             "date": entry_date,
             "current_value": current_value,
             "units": units,
@@ -176,34 +190,18 @@ def add_to_batch(
     return True
 
 
-def clear_batch(product_id: int | None = None) -> None:
+def clear_batch() -> None:
+    """Clears all pending entries in the valuation batch."""
+    st.session_state[StateKeys.VALUATION_BATCH] = []
+
+
+def submit_batch() -> bool:
     """
-    Clears the valuation batch, optionally for a specific product only.
+    Submits all pending valuation batch entries across products to the database.
 
-    :param product_id: If provided, only clears entries for this product.
-    """
-    if product_id is not None:
-        st.session_state[StateKeys.VALUATION_BATCH] = [
-            e
-            for e in st.session_state.get(StateKeys.VALUATION_BATCH, [])
-            if e["product_id"] != product_id
-        ]
-    else:
-        st.session_state[StateKeys.VALUATION_BATCH] = []
-
-
-def submit_batch(product: FinancialProduct) -> bool:
-    """
-    Submits the batch entries for a specific product to the database.
-
-    :param product: The FinancialProduct model to submit entries for.
     :return: True if submission was successful, False otherwise.
     """
-    batch = [
-        e
-        for e in st.session_state.get(StateKeys.VALUATION_BATCH, [])
-        if e["product_id"] == product.id
-    ]
+    batch = st.session_state.get(StateKeys.VALUATION_BATCH, [])
 
     if not batch:
         return False
@@ -224,9 +222,16 @@ def submit_batch(product: FinancialProduct) -> bool:
             repo.create_many(valuations)
             session.commit()
 
-        clear_batch(product.id)
-        st.success(f"Successfully added {len(batch)} valuation entries.")
+        clear_batch()
+        st.success(
+            f"Successfully added {len(batch)} valuation record(s) across products."
+        )
         return True
+    except IntegrityError:
+        st.error(
+            "Failed to submit entries: A valuation record with the same product and date already exists in the database."
+        )
+        return False
     except Exception as e:  # noqa: BLE001
         st.error(f"Failed to submit entries: {e}")
         return False
@@ -286,7 +291,7 @@ def render_valuation_entry_page() -> None:
     st.divider()
 
     # Last entry preview
-    latest_valuation = render_last_entry_preview(product)
+    render_last_entry_preview(product)
 
     st.divider()
 
@@ -350,18 +355,23 @@ def render_valuation_entry_page() -> None:
         except InvalidOperation:
             st.error("Please enter a valid number for unit value.")
 
-    # Show delta preview
+    # Show delta preview for current entry date against DB/batch
     if current_value is not None:
-        # Determine previous value (from batch or database)
-        product_batch = [
-            e
-            for e in st.session_state.get(StateKeys.VALUATION_BATCH, [])
-            if e["product_id"] == product.id
+        # Determine preceding value for entry_date
+        with get_session() as session:
+            repo = ProductValueRepository(session)
+            latest_before = repo.get_latest_before(product.id, entry_date)
+
+        batch = st.session_state.get(StateKeys.VALUATION_BATCH, [])
+        product_batch_before = [
+            e for e in batch if e["product_id"] == product.id and e["date"] < entry_date
         ]
-        if product_batch:
-            previous_value = product_batch[-1]["current_value"]
-        elif latest_valuation:
-            previous_value = latest_valuation.current_value
+
+        if product_batch_before:
+            product_batch_before.sort(key=lambda x: x["date"])
+            previous_value = product_batch_before[-1]["current_value"]
+        elif latest_before:
+            previous_value = latest_before.current_value
         else:
             previous_value = None
 
@@ -374,30 +384,31 @@ def render_valuation_entry_page() -> None:
 
     with col_add:
         add_disabled = current_value is None
-        if st.button("Add to Batch", disabled=add_disabled, use_container_width=True):
-            add_to_batch(product, entry_date, current_value, units_value, unit_value)
+        if st.button(
+            "Add to Batch", disabled=add_disabled, use_container_width=True
+        ) and add_to_batch(product, entry_date, current_value, units_value, unit_value):
             st.rerun()
 
+    batch_count = len(st.session_state.get(StateKeys.VALUATION_BATCH, []))
+
     with col_submit:
-        product_batch = [
-            e
-            for e in st.session_state.get(StateKeys.VALUATION_BATCH, [])
-            if e["product_id"] == product.id
-        ]
-        submit_disabled = len(product_batch) == 0
-        if st.button(
-            "Submit All",
-            disabled=submit_disabled,
-            type="primary",
-            use_container_width=True,
+        submit_disabled = batch_count == 0
+        btn_label = f"Submit All ({batch_count})" if batch_count > 0 else "Submit All"
+        if (
+            st.button(
+                btn_label,
+                disabled=submit_disabled,
+                type="primary",
+                use_container_width=True,
+            )
+            and submit_batch()
         ):
-            submit_batch(product)
             st.rerun()
 
     with col_clear:
         if st.button("Clear Batch", use_container_width=True):
-            clear_batch(product.id)
+            clear_batch()
             st.rerun()
 
-    # Render batch table
-    render_batch_table(product, latest_valuation)
+    # Render batch table across all products
+    render_batch_table()
