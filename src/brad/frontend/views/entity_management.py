@@ -343,7 +343,7 @@ def render_financial_product_form() -> None:
     with get_session() as session:
         providers = BaseRepository(session, Provider).list_all()
         holders = BaseRepository(session, Holder).list_all()
-        accounts = BaseRepository(session, Account).list_all()
+        accounts = AccountRepository(session).get_active()
         product_types = BaseRepository(session, ProductType).list_all()
 
     if not providers:
