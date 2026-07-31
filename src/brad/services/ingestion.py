@@ -156,7 +156,7 @@ def ingest_from_excel(session: Session, history_file: Path) -> dict:
     if not config_path.exists():
         raise FileNotFoundError(f"Missing history config at: {config_path}")
 
-    with config_path.open() as f:
+    with config_path.open(encoding="utf-8") as f:
         config = yaml.safe_load(f) or {}
         tabs_config = config.get("tabs", {})
         labels_config = config.get("financial_product_labels", {})

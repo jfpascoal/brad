@@ -16,6 +16,7 @@ setup:
 
 # Start the database container and initialize the schema
 up:
+    docker desktop start
     @echo "Starting the database container..."
     docker-compose -f docker/docker-compose.yml up -d
     @echo "Waiting for the Postgres server to be ready..."
@@ -29,6 +30,11 @@ down:
     @echo "Stopping the database container..."
     docker-compose -f docker/docker-compose.yml stop
     @echo "Container stopped."
+
+# Run the Streamlit frontend UI
+frontend: up
+    @echo "Launching the frontend..."
+    uv run brad frontend
 
 # Run code formatting
 fmt:

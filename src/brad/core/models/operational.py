@@ -12,6 +12,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from brad.core.models.base import Base, CreatedAtMixin, TimestampMixin
+from brad.core.models.reference import AccountType, ProductType
 
 
 class Provider(TimestampMixin, Base):
@@ -106,6 +107,7 @@ class Account(TimestampMixin, Base):
 
     # Relationships
     provider: Mapped["Provider"] = relationship(back_populates="accounts")
+    type_link: Mapped["AccountType"] = relationship()
     holder_links: Mapped[list["AccountHolder"]] = relationship(
         back_populates="account", cascade="all, delete-orphan"
     )
@@ -139,6 +141,7 @@ class FinancialProduct(TimestampMixin, Base):
 
     # Relationships
     provider: Mapped["Provider"] = relationship(back_populates="financial_products")
+    type_link: Mapped["ProductType"] = relationship()
     linked_account: Mapped["Account | None"] = relationship(
         back_populates="linked_products"
     )

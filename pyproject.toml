@@ -15,11 +15,13 @@ dependencies = [
     "psycopg[binary]",
     "pandas",
     "odfpy",
-    "pyyaml",
+    "pyyaml>=6.0",
     "sqlalchemy>=2.0",
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
     "click>=8.0",
+    "cryptography>=46.0",
+    "streamlit>=1.33"
 ]
 
 [project.scripts]

@@ -24,7 +24,7 @@ def mock_env() -> Generator[None, None, None]:
             "BRAD_SEED_DIR": "/tmp/seed",
             "BRAD_BACKUP_DIR": "/tmp/backup",
         },
-        clear=True,
+        clear=False,
     ):
         # Clear the lru_cache on get_settings so it re-reads the mocked environment
         get_settings.cache_clear()

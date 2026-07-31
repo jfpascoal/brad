@@ -1,8 +1,10 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
 from datetime import date
-from typing import Sequence
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from brad.core.models.operational import (
     Account,
@@ -21,6 +23,11 @@ class AccountRepository(BaseRepository[Account]):
         """Return all active accounts."""
         stmt = select(Account).where(Account.is_active.is_(True))
         return self.session.scalars(stmt).all()
+
+    def list_all_with_types(self) -> Sequence[Account]:
+        """Return all accounts with type relationship eager-loaded."""
+        stmt = select(Account).options(joinedload(Account.type_link))
+        return self.session.scalars(stmt).unique().all()
 
     def set_holders(self, account: Account, holder_ids: list[int]) -> None:
         """Set holders for an account (replaces existing)."""
@@ -46,6 +53,21 @@ class AccountBalanceRepository(BaseRepository[AccountBalance]):
         stmt = (
             select(AccountBalance)
             .where(AccountBalance.account_id == account_id)
+            .order_by(AccountBalance.date.desc())
+            .limit(1)
+        )
+        return self.session.scalars(stmt).first()
+
+    def get_latest_before(
+        self, account_id: int, before_date: date
+    ) -> AccountBalance | None:
+        """Get the most recent balance for an account before a given date."""
+        stmt = (
+            select(AccountBalance)
+            .where(
+                AccountBalance.account_id == account_id,
+                AccountBalance.date < before_date,
+            )
             .order_by(AccountBalance.date.desc())
             .limit(1)
         )
